@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------
+   Tokens de design do Sobra — espelham tailwind.config.ts.
+   Mantenha as duas fontes da verdade alinhadas.
+--------------------------------------------------------------- */
+:root {
+  /* Verdes da marca */
+  --color-green: #0F6E56;
+  --color-green-dark: #0d5f49;
+  --color-green-mid: #1D9E75;
+  --color-green-accent: #5DCAA5;
+  --color-green-soft: #9FE1CB;
+  --color-green-mist: #E1F5EE;
+
+  /* Neutros */
+  --color-bg: #F5F5F2;
+  --color-ink: #1A1A18;
+  --color-line: #E8E8E3;
+
+  /* Feedback */
+  --color-danger-bg: #FCEBEB;
+  --color-danger-text: #A32D2D;
+  --color-warn-bg: #FAEEDA;
+  --color-warn-text: #854F0B;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------------------------------------------------------
+   Componentes base — botões, cards, inputs e badges seguindo o
+   item 6.4 do briefing. Use @apply para que o JSX fique enxuto.
+--------------------------------------------------------------- */
+@layer components {
+  .sobra-card {
+    @apply bg-white border border-sobra-line rounded-card p-6 shadow-card;
+  }
+
+  .sobra-btn-primary {
+    @apply inline-flex items-center justify-center rounded-control bg-sobra-green px-4 py-2.5 text-white font-medium transition-colors hover:bg-sobra-green-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-sobra-green-mid focus-visible:ring-offset-2;
+  }
+
+  .sobra-btn-secondary {
+    @apply inline-flex items-center justify-center rounded-control border-[1.5px] border-sobra-line bg-transparent px-4 py-2.5 font-medium text-sobra-ink transition-colors hover:bg-sobra-bg;
+  }
+
+  .sobra-input {
+    @apply w-full rounded-control border-[1.5px] border-sobra-line bg-white px-3 py-2.5 text-body placeholder:text-sobra-ink/40 focus:border-sobra-green-mid focus:outline-none;
+  }
+
+  .sobra-badge-positive {
+    @apply inline-flex items-center rounded-full bg-sobra-green-mist px-2.5 py-0.5 text-caption font-medium text-sobra-green;
+  }
+
+  .sobra-badge-negative {
+    @apply inline-flex items-center rounded-full bg-sobra-danger-bg px-2.5 py-0.5 text-caption font-medium text-sobra-danger-text;
+  }
+
+  .sobra-badge-warn {
+    @apply inline-flex items-center rounded-full bg-sobra-warn-bg px-2.5 py-0.5 text-caption font-medium text-sobra-warn-text;
+  }
+}
