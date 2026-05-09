@@ -11,6 +11,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/layout/navbar'
+import { ToastProvider } from '@/components/ui/toast'
 
 export default async function AppLayout({
   children,
@@ -36,12 +37,14 @@ export default async function AppLayout({
   const iniciais = pegarIniciais(profile.nome_negocio)
 
   return (
-    <div className="min-h-screen flex flex-col bg-sobra-bg">
-      <Navbar iniciais={iniciais} />
-      <div className="flex-1">
-        <div className="max-w-[960px] mx-auto px-4 py-6 md:py-8">{children}</div>
+    <ToastProvider>
+      <div className="min-h-screen flex flex-col bg-sobra-bg">
+        <Navbar iniciais={iniciais} />
+        <div className="flex-1">
+          <div className="max-w-[960px] mx-auto px-4 py-6 md:py-8">{children}</div>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   )
 }
 

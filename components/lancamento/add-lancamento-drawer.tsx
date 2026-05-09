@@ -13,6 +13,7 @@ import {
   addLancamento,
   updateLancamento,
   type AddLancamentoInput,
+  type Recorrencia,
 } from '@/lib/actions/lancamento'
 import type { TipoLancamento, StatusLancamento } from '@/types/database'
 import { toDateOnly } from '@/lib/utils/period'
@@ -37,6 +38,7 @@ export interface LancamentoInicial {
   data: string
   data_vencimento: string | null
   cliente_fornecedor: string | null
+  recorrencia?: Recorrencia
 }
 
 interface AddLancamentoDrawerProps {
@@ -80,6 +82,7 @@ export function AddLancamentoDrawer({
   const [data, setData] = useState<string>(inicial?.data ?? toDateOnly(new Date()))
   const [vencimento, setVencimento] = useState<string>(inicial?.data_vencimento ?? '')
   const [cliente, setCliente] = useState<string>(inicial?.cliente_fornecedor ?? '')
+  const [recorrencia, setRecorrencia] = useState<Recorrencia>(inicial?.recorrencia ?? null)
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -121,6 +124,7 @@ export function AddLancamentoDrawer({
     setData(inicial?.data ?? toDateOnly(new Date()))
     setVencimento(inicial?.data_vencimento ?? '')
     setCliente(inicial?.cliente_fornecedor ?? '')
+    setRecorrencia(inicial?.recorrencia ?? null)
     setErrorMsg(null)
   }, [open, inicial])
 
@@ -133,6 +137,7 @@ export function AddLancamentoDrawer({
     setData(toDateOnly(new Date()))
     setVencimento('')
     setCliente('')
+    setRecorrencia(null)
     setErrorMsg(null)
   }
 
@@ -157,6 +162,7 @@ export function AddLancamentoDrawer({
       data,
       data_vencimento: status === 'pendente' && vencimento ? vencimento : null,
       cliente_fornecedor: cliente.trim() || null,
+      recorrencia,
     }
 
     setSubmitting(true)
@@ -340,6 +346,43 @@ export function AddLancamentoDrawer({
             />
           </Field>
 
+          {/* Recorrência — toggle elegante. Esconde quando está em "pendente" pra
+              não confundir (recorrente + pendente fica esquisito) */}
+          {statusVisual === 'concluido' && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-caption text-sobra-ink/70">
+                  Movimentação recorrente
+                </span>
+                <Switch
+                  ativo={recorrencia !== null}
+                  onChange={(on) => setRecorrencia(on ? 'mensal' : null)}
+                />
+              </div>
+              {recorrencia !== null && (
+                <div className="grid grid-cols-3 gap-2 p-1 bg-sobra-bg rounded-control">
+                  {(['semanal', 'mensal', 'anual'] as const).map((r) => (
+                    <ToggleButton
+                      key={r}
+                      ativo={recorrencia === r}
+                      corAtivo="bg-white text-sobra-green shadow-xs"
+                      onClick={() => setRecorrencia(r)}
+                      role="radio"
+                      aria-checked={recorrencia === r}
+                    >
+                      {r === 'semanal' ? 'Semanal' : r === 'mensal' ? 'Mensal' : 'Anual'}
+                    </ToggleButton>
+                  ))}
+                </div>
+              )}
+              <p className="text-caption text-sobra-ink-muted mt-1.5">
+                {recorrencia
+                  ? 'Vai aparecer marcada como 🔁 recorrente.'
+                  : 'Marque se for um lançamento que repete (aluguel, assinatura, etc).'}
+              </p>
+            </div>
+          )}
+
           {errorMsg && (
             <p className="text-caption text-sobra-danger-text bg-sobra-danger-bg rounded-control px-3 py-2 text-center">
               {errorMsg}
@@ -401,6 +444,26 @@ function ToggleButton({
       }`}
     >
       {children}
+    </button>
+  )
+}
+
+function Switch({ ativo, onChange }: { ativo: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={ativo}
+      onClick={() => onChange(!ativo)}
+      className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${
+        ativo ? 'bg-sobra-green' : 'bg-sobra-line'
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+          ativo ? 'translate-x-[18px]' : 'translate-x-0.5'
+        }`}
+      />
     </button>
   )
 }

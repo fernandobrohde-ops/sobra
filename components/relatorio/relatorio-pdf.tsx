@@ -188,18 +188,27 @@ const styles = StyleSheet.create({
 
 function LogoSymbol() {
   return (
-    <Svg width="28" height="28" viewBox="0 0 40 40">
-      <Rect width="40" height="40" rx="8" fill={cores.green} />
-      <Rect x="9"  y="22" width="5" height="10" rx="1.5" fill={cores.greenMst} />
-      <Rect x="17" y="17" width="5" height="15" rx="1.5" fill={cores.greenSft} />
-      <Rect x="25" y="11" width="5" height="21" rx="1.5" fill={cores.greenAcc} />
+    <Svg width="28" height="28" viewBox="0 0 100 100">
+      <Rect width="100" height="100" rx="25" fill={cores.green} />
+      <Circle
+        cx="50"
+        cy="50"
+        r="38"
+        stroke="#FFFFFF"
+        strokeWidth="7"
+        fill="none"
+        opacity={0.9}
+      />
+      <Path d="M50 68V34" stroke="#FFFFFF" strokeWidth="8" strokeLinecap="round" />
       <Path
-        d="M9 25 L17 19 L25 13 L31 9"
-        stroke={cores.greenAcc}
-        strokeWidth="1.6"
+        d="M32 52L50 34L68 52"
+        stroke="#FFFFFF"
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         fill="none"
       />
-      <Circle cx="31" cy="9" r="2.6" fill={cores.greenAcc} stroke={cores.green} strokeWidth="1" />
+      <Circle cx="50" cy="74" r="5" fill={cores.greenAcc} />
     </Svg>
   )
 }

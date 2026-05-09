@@ -1,4 +1,4 @@
-/**
+/*
  * Webhook do Stripe (briefing 5.4).
  *
  * Recebe eventos do Stripe e atualiza profile.plano e
@@ -15,14 +15,21 @@
  *   2. Selecione os eventos acima.
  *   3. Copie o webhook secret pra STRIPE_WEBHOOK_SECRET.
  */
+
+
+
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
-import { stripe, STRIPE_PRICE_IDS } from '@/lib/stripe/client'
+
 import type { Database, Plano } from '@/types/database'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+const STRIPE_PRICE_IDS = {
+  essencial: process.env.STRIPE_PRICE_ESSENCIAL || '',
+  pro: process.env.STRIPE_PRICE_PRO || '',
+}
 
 // Service role bypassa RLS — necessário porque o webhook não tem sessão.
 function serviceClient() {
@@ -46,7 +53,9 @@ export async function POST(request: NextRequest) {
   }
 
   let event: Stripe.Event
-  try {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder')
+
+try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
     console.error('Webhook signature inválida:', err)

@@ -29,11 +29,24 @@ export interface DashboardData {
   totalSaidas: number
   /** Variação % vs período anterior (null se não dá para calcular) */
   variacao: number | null
+  /** Sobra do período anterior (em valor absoluto) — pra microcopy */
+  sobraAnterior: number
   /** Pendentes — não dependem do período */
   aReceber: number
   aPagar: number
   /** Últimas movimentações no período (10 mais recentes) */
   ultimasMovimentacoes: MovimentacaoListItem[]
+  /** Histórico mensal pra sparkline (últimos 6 meses, mais antigo primeiro) */
+  historicoMensal: HistoricoMes[]
+}
+
+export interface HistoricoMes {
+  mes: number  // 1-12
+  ano: number
+  label: string  // "mai/26"
+  entradas: number
+  saidas: number
+  sobra: number
 }
 
 export interface MovimentacaoListItem {
@@ -44,6 +57,7 @@ export interface MovimentacaoListItem {
   status: StatusLancamento
   data: string  // ISO date
   categoria: { nome: string; cor: string | null } | null
+  recorrencia: 'mensal' | 'semanal' | 'anual' | null
 }
 
 /**
@@ -62,11 +76,13 @@ export async function getDashboardData(
     sumsPrev,
     pendentes,
     movimentacoes,
+    historicoMensal,
   ] = await Promise.all([
     sumByTipo(supabase, userId, cur.start, cur.end),
     sumByTipo(supabase, userId, prev.start, prev.end),
     sumPendentes(supabase, userId),
     listUltimas(supabase, userId, cur.start, cur.end, 10),
+    getHistoricoMensal(supabase, userId, 6),
   ])
 
   const sobra = sumsCurrent.entrada - sumsCurrent.saida
@@ -88,10 +104,68 @@ export async function getDashboardData(
     faturado: sumsCurrent.entrada,
     totalSaidas: sumsCurrent.saida,
     variacao,
+    sobraAnterior,
     aReceber: pendentes.entrada,
     aPagar: pendentes.saida,
     ultimasMovimentacoes: movimentacoes,
+    historicoMensal,
   }
+}
+
+// ---------------------------------------------------------------------
+// Histórico mensal — usado pelo sparkline do hero card.
+// Pega os últimos N meses (incluindo o atual). Resolve em memória depois
+// de uma query única.
+// ---------------------------------------------------------------------
+async function getHistoricoMensal(
+  supabase: DB,
+  userId: string,
+  meses: number
+): Promise<HistoricoMes[]> {
+  const hoje = new Date()
+  // Início do mês mais antigo a buscar
+  const start = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1)
+  const end = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0)
+
+  const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`
+  const endStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
+
+  const { data } = await supabase
+    .from('lancamentos')
+    .select('tipo, valor, data')
+    .eq('user_id', userId)
+    .gte('data', startStr)
+    .lte('data', endStr)
+
+  // Inicializa buckets pra cada mês no range (mais antigo → atual)
+  const buckets: HistoricoMes[] = []
+  for (let i = meses - 1; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1)
+    buckets.push({
+      mes: d.getMonth() + 1,
+      ano: d.getFullYear(),
+      label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') +
+             '/' + String(d.getFullYear()).slice(-2),
+      entradas: 0,
+      saidas: 0,
+      sobra: 0,
+    })
+  }
+
+  // Soma por mês
+  for (const row of (data ?? []) as Array<{ tipo: string; valor: number | string; data: string }>) {
+    const v = typeof row.valor === 'string' ? Number(row.valor) : row.valor
+    if (!Number.isFinite(v)) continue
+    const [yStr, mStr] = row.data.split('-')
+    const y = Number(yStr), m = Number(mStr)
+    const bucket = buckets.find((b) => b.ano === y && b.mes === m)
+    if (!bucket) continue
+    if (row.tipo === 'entrada') bucket.entradas += v
+    else if (row.tipo === 'saida') bucket.saidas += v
+  }
+
+  for (const b of buckets) b.sobra = b.entradas - b.saidas
+  return buckets
 }
 
 // ---------------------------------------------------------------------
@@ -254,6 +328,7 @@ export interface PendenteListItem {
   data_vencimento: string | null
   cliente_fornecedor: string | null
   categoria: { id: string; nome: string; cor: string | null; tipo: TipoLancamento } | null
+  recorrencia: 'mensal' | 'semanal' | 'anual' | null
 }
 
 export async function listPendentes(
@@ -264,7 +339,7 @@ export async function listPendentes(
   const { data, error } = await supabase
     .from('lancamentos')
     .select(`
-      id, descricao, valor, tipo, data, data_vencimento, cliente_fornecedor,
+      id, descricao, valor, tipo, data, data_vencimento, cliente_fornecedor, recorrencia,
       categoria:categorias ( id, nome, cor, tipo )
     `)
     .eq('user_id', userId)
@@ -289,6 +364,7 @@ export async function listPendentes(
       categoria: cat
         ? { id: cat.id, nome: cat.nome, cor: cat.cor, tipo: cat.tipo as TipoLancamento }
         : null,
+      recorrencia: row.recorrencia ?? null,
     }
   })
 
@@ -305,7 +381,7 @@ async function listUltimas(
   const { data, error } = await supabase
     .from('lancamentos')
     .select(`
-      id, descricao, valor, tipo, status, data,
+      id, descricao, valor, tipo, status, data, recorrencia,
       categoria:categorias ( nome, cor )
     `)
     .eq('user_id', userId)
@@ -330,6 +406,7 @@ async function listUltimas(
       status: row.status as StatusLancamento,
       data: row.data,
       categoria: cat ? { nome: cat.nome, cor: cat.cor } : null,
+      recorrencia: row.recorrencia ?? null,
     }
   })
 }

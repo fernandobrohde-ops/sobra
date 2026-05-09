@@ -15,6 +15,9 @@ if (!key) {
 }
 
 export const stripe = new Stripe(key ?? 'sk_test_placeholder', {
+  // A versão exata é exigida pelo SDK em compile time. Se o npm
+  // instalar uma versão mais nova do `stripe` que pede outra string,
+  // basta atualizar aqui (ou fazer `as any` se preferir desacoplar).
   apiVersion: '2025-02-24.acacia',
   typescript: true,
 })

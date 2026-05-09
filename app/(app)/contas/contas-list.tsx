@@ -8,7 +8,7 @@
  *
  * Edição reabre o `AddLancamentoDrawer` em modo "editar".
  */
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   markLancamentoConcluido,
@@ -19,6 +19,8 @@ import {
   type CategoriaOpcao,
   type LancamentoInicial,
 } from '@/components/lancamento/add-lancamento-drawer'
+import { CategoriaIcon } from '@/components/ui/categoria-icon'
+import { useToast } from '@/components/ui/toast'
 import {
   formatBRL,
   formatDateShort,
@@ -38,40 +40,91 @@ interface ContasListProps {
 
 export function ContasList({ itens, categorias, total, aba }: ContasListProps) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
+  const toast = useToast()
 
   // Estado local para overlay de "ação em andamento" — evita cliques duplos.
   const [acaoEmId, setAcaoEmId] = useState<string | null>(null)
-  const [erro, setErro] = useState<string | null>(null)
+
+  // IDs escondidos localmente — quando usuário clica "Excluir" mas ainda
+  // não confirmou (timer de undo). Filtramos esses da lista visível.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+  // Timers pendentes de delete — pra cancelar se o usuário clicar Desfazer.
+  const pendingDeletes = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   // Drawer de edição
   const [editarItem, setEditarItem] = useState<LancamentoInicial | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  async function marcarComoConcluido(id: string) {
+  async function marcarComoConcluido(id: string, descricao: string) {
     setAcaoEmId(id)
-    setErro(null)
     const res = await markLancamentoConcluido(id)
     setAcaoEmId(null)
     if (!res.ok) {
-      setErro(res.error)
+      toast.show({ title: 'Não consegui marcar', description: res.error, tone: 'error' })
       return
     }
+    toast.show({
+      title: 'Marcado como pago',
+      description: descricao,
+      tone: 'success',
+    })
     startTransition(() => router.refresh())
   }
 
-  async function excluir(id: string) {
-    if (!window.confirm('Excluir esse lançamento? Essa ação não tem volta.')) return
-    setAcaoEmId(id)
-    setErro(null)
-    const res = await deleteLancamento(id)
-    setAcaoEmId(null)
-    if (!res.ok) {
-      setErro(res.error)
-      return
-    }
-    startTransition(() => router.refresh())
+  function excluir(id: string, descricao: string) {
+    // 1) Esconde localmente (optimistic)
+    setHiddenIds((curr) => new Set(curr).add(id))
+
+    // 2) Agenda delete real depois de 5s (tempo do toast)
+    const timer = setTimeout(async () => {
+      pendingDeletes.current.delete(id)
+      const res = await deleteLancamento(id)
+      if (!res.ok) {
+        // Falhou? Reverte: tira do hidden e avisa.
+        setHiddenIds((curr) => {
+          const next = new Set(curr)
+          next.delete(id)
+          return next
+        })
+        toast.show({
+          title: 'Não consegui excluir',
+          description: res.error,
+          tone: 'error',
+        })
+        return
+      }
+      startTransition(() => router.refresh())
+    }, 5000)
+    pendingDeletes.current.set(id, timer)
+
+    // 3) Mostra toast com botão Desfazer
+    toast.show({
+      title: 'Movimentação removida',
+      description: descricao,
+      duration: 5000,
+      action: {
+        label: 'Desfazer',
+        onClick: () => {
+          // Cancela o delete e tira do hidden
+          const t = pendingDeletes.current.get(id)
+          if (t) {
+            clearTimeout(t)
+            pendingDeletes.current.delete(id)
+          }
+          setHiddenIds((curr) => {
+            const next = new Set(curr)
+            next.delete(id)
+            return next
+          })
+          toast.show({ title: 'Desfeito', tone: 'info', duration: 2500 })
+        },
+      },
+    })
   }
+
+  // Lista visível = sem os hidden
+  const visibleItens = itens.filter((item) => !hiddenIds.has(item.id))
 
   function abrirEdicao(item: PendenteListItem) {
     setEditarItem({
@@ -84,54 +137,50 @@ export function ContasList({ itens, categorias, total, aba }: ContasListProps) {
       data: item.data,
       data_vencimento: item.data_vencimento,
       cliente_fornecedor: item.cliente_fornecedor,
+      recorrencia: item.recorrencia,
     })
     setDrawerOpen(true)
   }
 
-  if (itens.length === 0) {
-    return (
-      <EmptyState aba={aba} />
-    )
+  if (visibleItens.length === 0) {
+    return <EmptyState aba={aba} />
   }
+
+  // Total recalculado em cima da lista visível pra refletir o estado real.
+  const totalVisivel = visibleItens.reduce((s, i) => s + i.valor, 0)
 
   return (
     <>
       {/* Total no topo dá direção: o usuário entende o "tamanho da fila". */}
-      <div className="sobra-card !p-4 md:!p-5 mb-4 flex items-baseline justify-between">
-        <span className="text-caption text-sobra-ink/60">
+      <div className="bg-white border border-sobra-line rounded-card p-4 md:p-5 mb-4 flex items-baseline justify-between shadow-xs">
+        <span className="text-caption text-sobra-ink-muted">
           Total {aba === 'receber' ? 'a receber' : 'a pagar'}
         </span>
-        <span className={`text-h2 font-medium tabular-nums ${
+        <span className={`text-h2 font-semibold tabular-nums ${
           aba === 'receber' ? 'text-sobra-green' : 'text-sobra-warn-text'
         }`}>
-          {formatBRL(total)}
+          {formatBRL(totalVisivel)}
         </span>
       </div>
 
       <ul className="space-y-2.5">
-        {itens.map((item) => {
+        {visibleItens.map((item) => {
           const venc = classificarVencimento(item.data_vencimento)
-          const ocupado = acaoEmId === item.id || pending
+          const ocupado = acaoEmId === item.id
           return (
             <li key={item.id}>
               <ContaItem
                 item={item}
                 vencimento={venc}
                 ocupado={ocupado}
-                onMarcar={() => marcarComoConcluido(item.id)}
+                onMarcar={() => marcarComoConcluido(item.id, item.descricao)}
                 onEditar={() => abrirEdicao(item)}
-                onExcluir={() => excluir(item.id)}
+                onExcluir={() => excluir(item.id, item.descricao)}
               />
             </li>
           )
         })}
       </ul>
-
-      {erro && (
-        <p className="mt-4 text-caption text-sobra-danger-text bg-sobra-danger-bg rounded-control px-3 py-2 text-center">
-          {erro}
-        </p>
-      )}
 
       <AddLancamentoDrawer
         open={drawerOpen}
@@ -161,24 +210,24 @@ interface ContaItemProps {
 
 function ContaItem({ item, vencimento, ocupado, onMarcar, onEditar, onExcluir }: ContaItemProps) {
   return (
-    <div className="sobra-card !p-4">
-      <div className="flex items-start gap-3">
-        <CategoryDot cor={item.categoria?.cor} tipo={item.tipo} />
+    <div className="bg-white border border-sobra-line rounded-card p-4 shadow-xs transition-shadow duration-150 hover:shadow-sm">
+      <div className="flex items-start gap-3.5">
+        <CategoriaIcon nome={item.categoria?.nome} tipo={item.tipo} size={40} />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <p className="text-body text-sobra-ink font-medium truncate min-w-0">
+            <p className="text-body-sm font-semibold text-sobra-ink truncate min-w-0">
               {item.descricao}
             </p>
-            <span className="tabular-nums text-body font-medium ml-auto whitespace-nowrap">
+            <span className="tabular-nums text-body-sm font-semibold ml-auto whitespace-nowrap text-sobra-ink">
               {formatBRL(item.valor)}
             </span>
           </div>
-          <p className="text-caption text-sobra-ink/60 mt-0.5 truncate">
+          <p className="text-caption text-sobra-ink-muted mt-0.5 truncate">
             {item.categoria?.nome ?? 'Sem categoria'}
             {item.cliente_fornecedor ? ` · ${item.cliente_fornecedor}` : ''}
           </p>
 
-          <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
+          <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
             <VencimentoBadge venc={vencimento} dataIso={item.data_vencimento} />
             <ActionMenu
               ocupado={ocupado}
@@ -190,17 +239,6 @@ function ContaItem({ item, vencimento, ocupado, onMarcar, onEditar, onExcluir }:
         </div>
       </div>
     </div>
-  )
-}
-
-function CategoryDot({ cor, tipo }: { cor: string | null | undefined; tipo: 'entrada' | 'saida' }) {
-  const fallback = tipo === 'entrada' ? '#5DCAA5' : '#E8E8E3'
-  return (
-    <span
-      aria-hidden
-      className="block w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0"
-      style={{ backgroundColor: cor || fallback }}
-    />
   )
 }
 

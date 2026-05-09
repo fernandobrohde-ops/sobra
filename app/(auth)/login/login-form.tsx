@@ -21,6 +21,7 @@ export function LoginForm() {
   const searchParams = useSearchParams()
 
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [status, setStatus] = useState<Status>('idle')
 
   // Erro pode vir do estado local (submissão atual) OU da URL (?erro=)
@@ -50,22 +51,17 @@ export function LoginForm() {
     setStatus('submitting')
     setErrorMsg(null)
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        // shouldCreateUser=true permite primeiro acesso. O profile é criado
-        // só depois, no fim do onboarding.
-        shouldCreateUser: true,
-        emailRedirectTo: redirectTo,
-      },
-    })
+    const { error } = await supabase.auth.signInWithPassword({
+  email: email.trim(),
+  password,
+})
 
     if (error) {
       setStatus('error')
       setErrorMsg(traduzirErro(error.message))
       return
     }
-    setStatus('sent')
+    window.location.href = '/dashboard'
   }
 
   async function onClickGoogle() {
@@ -75,7 +71,9 @@ export function LoginForm() {
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+  redirectTo: `${window.location.origin}/auth/callback`,
+},
     })
 
     if (error) {
@@ -86,40 +84,7 @@ export function LoginForm() {
   }
 
   // ----- View: confirmação após envio do magic link -----
-  if (status === 'sent') {
-    return (
-      <div className="text-center py-2">
-        <div className="mx-auto mb-3 w-10 h-10 rounded-full bg-sobra-green-mist flex items-center justify-center">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="M3 6.5l7 4 7-4M3 6.5v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M3 6.5l7-3 7 3"
-              stroke="#0F6E56"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <p className="text-body text-sobra-ink font-medium mb-1">
-          Enviamos um link para seu e-mail
-        </p>
-        <p className="text-caption text-sobra-ink/60">
-          Abra <strong className="text-sobra-ink">{email}</strong> e clique no link
-          para entrar. Pode fechar essa aba.
-        </p>
-        <button
-          type="button"
-          className="mt-5 text-caption text-sobra-green hover:underline"
-          onClick={() => {
-            setStatus('idle')
-            setErrorMsg(null)
-          }}
-        >
-          Usar outro e-mail
-        </button>
-      </div>
-    )
-  }
+ 
 
   // ----- View: form padrão -----
   return (
@@ -140,15 +105,30 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={status === 'submitting'}
-          />
-        </label>
+         />
+</label>
+
+<label className="sobra-label">
+  <span>Senha</span>
+
+  <input
+    type="password"
+    autoComplete="current-password"
+    required
+    placeholder="Sua senha"
+    className="sobra-input"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    disabled={status === 'submitting'}
+    />
+   </label>
 
         <button
           type="submit"
           className="sobra-btn-primary w-full"
           disabled={status === 'submitting' || !email}
         >
-          {status === 'submitting' ? 'Enviando...' : 'Entrar com magic link'}
+          {status === 'submitting' ? 'Enviando...' : 'Entrar'}
         </button>
       </form>
 

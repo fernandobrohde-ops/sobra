@@ -1,9 +1,10 @@
 /**
- * Logo do Sobra — versão clara (símbolo verde sobre fundo branco/off-white)
- * conforme briefing 6.3.
+ * Logo do Sobra — versão clara (símbolo branco/verde sobre fundo
+ * verde escuro do briefing 6.3).
  *
- * O símbolo é um gráfico de barras crescentes (mist, soft, accent) com uma
- * linha de tendência subindo e um círculo no topo, tudo alinhado.
+ * O símbolo é uma seta crescente dentro de um círculo, com um ponto
+ * verde-claro destacado abaixo da haste — sintetiza "alta" + "marcador
+ * de início" (a 'sobra' que cresce).
  *
  * Uso:
  *   <SobraLogo size={40} />              // só o símbolo
@@ -22,38 +23,51 @@ export function SobraLogo({
   className,
   ...rest
 }: SobraLogoProps) {
-  // Raio de borda escala com o tamanho — briefing 6.3
-  const radius = size <= 32 ? 8 : size <= 40 ? 10 : 14
-
   if (!withWordmark) {
     return (
       <svg
         width={size}
         height={size}
-        viewBox="0 0 40 40"
+        viewBox="0 0 100 100"
         xmlns="http://www.w3.org/2000/svg"
         className={className}
         aria-label="Sobra"
         role="img"
         {...rest}
       >
-        <rect width="40" height="40" rx={radius} fill="#0F6E56" />
-        {/* Barras crescentes */}
-        <rect x="9"  y="22" width="5" height="10" rx="1.5" fill="#E1F5EE" />
-        <rect x="17" y="17" width="5" height="15" rx="1.5" fill="#9FE1CB" />
-        <rect x="25" y="11" width="5" height="21" rx="1.5" fill="#5DCAA5" />
-        {/* Linha de tendência subindo */}
+        {/* Container verde da marca — radius proporcional (25/100 = 0.25) */}
+        <rect width="100" height="100" rx="25" fill="#0F6E56" />
+
+        {/* Círculo externo */}
+        <circle
+          cx="50"
+          cy="50"
+          r="38"
+          stroke="rgba(255,255,255,0.9)"
+          strokeWidth="7"
+          fill="none"
+        />
+
+        {/* Haste da seta */}
         <path
-          d="M9 25 L17 19 L25 13 L31 9"
-          stroke="#5DCAA5"
-          strokeWidth="1.6"
+          d="M50 68V34"
+          stroke="white"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+
+        {/* Ponta da seta */}
+        <path
+          d="M32 52L50 34L68 52"
+          stroke="white"
+          strokeWidth="8"
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="none"
-          opacity="0.85"
         />
-        {/* Círculo no topo */}
-        <circle cx="31" cy="9" r="2.6" fill="#5DCAA5" stroke="#0F6E56" strokeWidth="1" />
+
+        {/* Marcador inferior em verde-claro */}
+        <circle cx="50" cy="74" r="5" fill="#5DCAA5" />
       </svg>
     )
   }

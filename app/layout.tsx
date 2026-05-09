@@ -1,19 +1,20 @@
 import type { Metadata, Viewport } from 'next'
-import { DM_Sans, Lora } from 'next/font/google'
+import { Inter, Lora } from 'next/font/google'
 import './globals.css'
 
-// DM Sans → interface (weights do briefing: 300, 400, 500)
-const dmSans = DM_Sans({
+// Inter → interface principal (referência de SaaS premium: Linear, Stripe, Ramp).
+// Carrega vários pesos pra ter hierarquia rica nos cards e tipografia sutil.
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500'],
-  variable: '--font-dm-sans',
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-inter',
   display: 'swap',
 })
 
-// Lora → display/logo (weights 400 e 500, com itálico)
+// Lora → display/logo, usado em hero, valores grandes, headlines emocionais.
 const lora = Lora({
   subsets: ['latin'],
-  weight: ['400', '500'],
+  weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
   variable: '--font-lora',
   display: 'swap',
@@ -44,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR" className={`${dmSans.variable} ${lora.variable}`}>
+    <html lang="pt-BR" className={`${inter.variable} ${lora.variable}`}>
       <body className="min-h-screen bg-sobra-bg text-sobra-ink antialiased">
         {children}
       </body>

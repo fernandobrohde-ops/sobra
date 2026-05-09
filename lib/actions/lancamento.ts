@@ -11,6 +11,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { TipoLancamento, StatusLancamento } from '@/types/database'
 
+export type Recorrencia = 'mensal' | 'semanal' | 'anual' | null
+
 export interface AddLancamentoInput {
   descricao: string
   valor: number  // já parseado em decimal
@@ -20,6 +22,7 @@ export interface AddLancamentoInput {
   data: string  // ISO YYYY-MM-DD
   data_vencimento: string | null
   cliente_fornecedor: string | null
+  recorrencia: Recorrencia
 }
 
 export type AddLancamentoResult =
@@ -53,6 +56,7 @@ export async function addLancamento(
       data: input.data,
       data_vencimento: input.data_vencimento,
       cliente_fornecedor: input.cliente_fornecedor?.trim() || null,
+      recorrencia: input.recorrencia,
     })
     .select('id')
     .single()
@@ -89,6 +93,8 @@ function validar(input: AddLancamentoInput): string | null {
     return 'Data inválida.'
   if (input.data_vencimento && !/^\d{4}-\d{2}-\d{2}$/.test(input.data_vencimento))
     return 'Vencimento inválido.'
+  if (input.recorrencia !== null && !['mensal', 'semanal', 'anual'].includes(input.recorrencia))
+    return 'Recorrência inválida.'
 
   return null
 }
@@ -133,6 +139,7 @@ export async function updateLancamento(
       data: input.data,
       data_vencimento: input.data_vencimento,
       cliente_fornecedor: input.cliente_fornecedor?.trim() || null,
+      recorrencia: input.recorrencia,
     })
     .eq('id', id)
     // RLS já garante user_id, mas reforçamos para evitar update por engano

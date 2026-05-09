@@ -3,70 +3,141 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------
-   Tokens de design do Sobra — espelham tailwind.config.ts.
+   Tokens de design do Sobra v2 — espelham tailwind.config.ts.
    Mantenha as duas fontes da verdade alinhadas.
 --------------------------------------------------------------- */
 :root {
-  /* Verdes da marca */
+  /* Verdes da marca (escala completa) */
   --color-green: #0F6E56;
   --color-green-dark: #0d5f49;
   --color-green-mid: #1D9E75;
   --color-green-accent: #5DCAA5;
   --color-green-soft: #9FE1CB;
   --color-green-mist: #E1F5EE;
+  --color-green-pale: #F4FAF7;
 
-  /* Neutros */
+  /* Neutros (escala expandida) */
   --color-bg: #F5F5F2;
+  --color-surface: #FFFFFF;
+  --color-surface-soft: #FAFAF8;
   --color-ink: #1A1A18;
+  --color-ink-soft: #4A4A47;
+  --color-ink-muted: #6B6B68;
+  --color-ink-faint: #9C9C99;
   --color-line: #E8E8E3;
+  --color-line-soft: #F1EFE8;
 
   /* Feedback */
   --color-danger-bg: #FCEBEB;
   --color-danger-text: #A32D2D;
+  --color-danger: #D94040;
   --color-warn-bg: #FAEEDA;
   --color-warn-text: #854F0B;
+  --color-warn: #BA7517;
+  --color-info-bg: #E8F1FB;
+  --color-info-text: #1F4A7C;
+
+  /* Sombras premium (estilo Linear/Stripe) */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 18, 0.04);
+  --shadow-sm: 0 2px 6px rgba(15, 23, 18, 0.05), 0 1px 2px rgba(15, 23, 18, 0.04);
+  --shadow-md: 0 8px 24px rgba(15, 23, 18, 0.06), 0 2px 6px rgba(15, 23, 18, 0.04);
+  --shadow-lg: 0 16px 48px rgba(15, 23, 18, 0.08), 0 4px 12px rgba(15, 23, 18, 0.05);
+  --shadow-hero: 0 24px 64px rgba(15, 110, 86, 0.18), 0 8px 24px rgba(15, 110, 86, 0.10);
+  --shadow-fab: 0 12px 32px rgba(15, 110, 86, 0.32), 0 4px 12px rgba(15, 110, 86, 0.20);
+
+  /* Easings */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
 }
 
 html,
 body {
   background-color: var(--color-bg);
   color: var(--color-ink);
-  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Inter renderiza melhor com isto */
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 /* ---------------------------------------------------------------
-   Componentes base — botões, cards, inputs e badges seguindo o
-   item 6.4 do briefing. Use @apply para que o JSX fique enxuto.
+   Componentes base v2 — mais nuance e premium feel
 --------------------------------------------------------------- */
 @layer components {
   .sobra-card {
-    @apply bg-white border border-sobra-line rounded-card p-6 shadow-card;
+    @apply bg-white border border-sobra-line rounded-card p-6 shadow-card transition-shadow duration-200;
+  }
+
+  .sobra-card-interactive {
+    @apply sobra-card cursor-pointer hover:shadow-md hover:border-sobra-line/60;
   }
 
   .sobra-btn-primary {
-    @apply inline-flex items-center justify-center rounded-control bg-sobra-green px-4 py-2.5 text-white font-medium transition-colors hover:bg-sobra-green-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-sobra-green-mid focus-visible:ring-offset-2;
+    @apply inline-flex items-center justify-center rounded-control bg-sobra-green px-4 py-2.5 text-white text-sm font-medium transition-all duration-150 hover:bg-sobra-green-dark active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-sobra-green-mid focus-visible:ring-offset-2;
   }
 
   .sobra-btn-secondary {
-    @apply inline-flex items-center justify-center rounded-control border-[1.5px] border-sobra-line bg-transparent px-4 py-2.5 font-medium text-sobra-ink transition-colors hover:bg-sobra-bg;
+    @apply inline-flex items-center justify-center rounded-control border border-sobra-line bg-white px-4 py-2.5 text-sm font-medium text-sobra-ink transition-all duration-150 hover:bg-sobra-bg hover:border-sobra-line/80 active:scale-[0.98];
+  }
+
+  .sobra-btn-ghost {
+    @apply inline-flex items-center justify-center rounded-control bg-transparent px-3 py-2 text-sm font-medium text-sobra-ink/70 transition-all duration-150 hover:bg-sobra-line/40 hover:text-sobra-ink active:scale-[0.98];
   }
 
   .sobra-input {
-    @apply w-full rounded-control border-[1.5px] border-sobra-line bg-white px-3 py-2.5 text-body placeholder:text-sobra-ink/40 focus:border-sobra-green-mid focus:outline-none;
+    @apply w-full rounded-control border border-sobra-line bg-white px-3.5 py-2.5 text-sm placeholder:text-sobra-ink/35 transition-all duration-150 focus:border-sobra-green-mid focus:outline-none focus:ring-4 focus:ring-sobra-green-mid/10;
   }
 
   .sobra-badge-positive {
-    @apply inline-flex items-center rounded-full bg-sobra-green-mist px-2.5 py-0.5 text-caption font-medium text-sobra-green;
+    @apply inline-flex items-center gap-1 rounded-full bg-sobra-green-mist px-2.5 py-0.5 text-xs font-medium text-sobra-green;
   }
 
   .sobra-badge-negative {
-    @apply inline-flex items-center rounded-full bg-sobra-danger-bg px-2.5 py-0.5 text-caption font-medium text-sobra-danger-text;
+    @apply inline-flex items-center gap-1 rounded-full bg-sobra-danger-bg px-2.5 py-0.5 text-xs font-medium text-sobra-danger-text;
   }
 
   .sobra-badge-warn {
-    @apply inline-flex items-center rounded-full bg-sobra-warn-bg px-2.5 py-0.5 text-caption font-medium text-sobra-warn-text;
+    @apply inline-flex items-center gap-1 rounded-full bg-sobra-warn-bg px-2.5 py-0.5 text-xs font-medium text-sobra-warn-text;
   }
+
+  .sobra-badge-neutral {
+    @apply inline-flex items-center gap-1 rounded-full bg-sobra-line/60 px-2.5 py-0.5 text-xs font-medium text-sobra-ink/70;
+  }
+
+  /* Skeleton pulse usando keyframe customizada (definida abaixo) */
+  .sobra-skeleton {
+    @apply rounded bg-sobra-line/60 animate-[pulse_1.6s_ease-in-out_infinite];
+  }
+}
+
+/* ---------------------------------------------------------------
+   Animações utilitárias
+--------------------------------------------------------------- */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s var(--ease-out-quart) backwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s var(--ease-out-quart);
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s var(--ease-out-quart);
 }
