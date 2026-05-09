@@ -42,12 +42,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Autenticado batendo em /login → manda direto pro dashboard.
-  if (isAuthRoute && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    url.searchParams.delete('redirect')
-    return NextResponse.redirect(url)
-  }
+//  if (isAuthRoute && user) {
+//   const url = request.nextUrl.clone()
+//    url.pathname = '/dashboard'
+//  url.searchParams.delete('redirect')
+//  return NextResponse.redirect(url)
+// }
 
   return response
 }
