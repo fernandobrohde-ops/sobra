@@ -45,7 +45,7 @@ export function HeroCard({
       : <TrendDownIcon />
 
   // Valores pra sparkline (sobra dos últimos 6 meses)
-  const sparkValues = historicoMensal.map((h) => h.sobra)
+  const sparkValues = (historicoMensal ?? []).map((h) => h.sobra)
 
   return (
     <div className="relative rounded-card-lg overflow-hidden shadow-hero">
