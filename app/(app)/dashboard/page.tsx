@@ -9,10 +9,13 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getDashboardData } from '@/lib/dashboard/queries'
 import { getDateRange } from '@/lib/utils/period'
+import { generateInsights, getTopCategoriasGasto } from '@/lib/dashboard/insights'
 import { HeroCard } from '@/components/dashboard/hero-card'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { MovementList } from '@/components/dashboard/movement-list'
 import { PeriodFilter } from '@/components/dashboard/period-filter'
+import { InsightsSection } from '@/components/dashboard/insights-section'
+import { EntriesVsExits } from '@/components/dashboard/entries-vs-exits'
 import { parsePeriodParam } from './period'
 import { AddLancamentoFab } from '@/components/lancamento/add-lancamento-fab'
 import type { CategoriaOpcao } from '@/components/lancamento/add-lancamento-drawer'
@@ -35,37 +38,66 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // O layout (app)/layout.tsx já redireciona se !user; aqui só assegura tipo.
   if (!user) return null
 
-  // Dashboard + categorias do drawer em paralelo.
-  const [dados, categorias] = await Promise.all([
+  // Dashboard + categorias do drawer + breakdown pra insights, em paralelo.
+  const [dados, categorias, topCategorias] = await Promise.all([
     getDashboardData(supabase, user.id, period),
     fetchCategorias(supabase, user.id),
+    getTopCategoriasGasto(supabase, user.id, range.start, range.end),
   ])
+
+  const insights = generateInsights({
+    sobra: dados.sobra,
+    faturado: dados.faturado,
+    totalSaidas: dados.totalSaidas,
+    variacao: dados.variacao,
+    sobraAnterior: dados.sobraAnterior,
+    topCategorias,
+    historicoMensal: dados.historicoMensal,
+  })
 
   return (
     <>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+      <div
+        className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5 animate-fade-in-up"
+        style={{ animationDelay: '0ms' }}
+      >
         <div>
-          <h1 className="text-h1 font-medium text-sobra-ink">Dashboard</h1>
-          <p className="text-caption text-sobra-ink/60">{range.label}</p>
+          <h1 className="text-h1 font-semibold text-sobra-ink">Dashboard</h1>
+          <p className="text-caption text-sobra-ink-muted">{range.label}</p>
         </div>
         <PeriodFilter atual={period} />
       </div>
 
-      <HeroCard
-        sobra={dados.sobra}
-        faturado={dados.faturado}
-        variacao={dados.variacao}
-        periodoLabel={range.label}
-      />
+      <div className="animate-fade-in-up" style={{ animationDelay: '60ms' }}>
+        <HeroCard
+          sobra={dados.sobra}
+          faturado={dados.faturado}
+          variacao={dados.variacao}
+          sobraAnterior={dados.sobraAnterior}
+          periodoLabel={range.label}
+          historicoMensal={dados.historicoMensal}
+        />
+      </div>
 
-      <section className="grid grid-cols-2 gap-3 mt-5">
+      <div className="animate-fade-in-up" style={{ animationDelay: '120ms' }}>
+        <InsightsSection insights={insights} />
+      </div>
+
+      <section
+        className="grid grid-cols-2 gap-3 mt-6 animate-fade-in-up"
+        style={{ animationDelay: '180ms' }}
+      >
         <StatCard label="A receber" valor={dados.aReceber} tone="positive" />
         <StatCard label="A pagar" valor={dados.aPagar} tone="warn" />
         <StatCard label="Total entradas" valor={dados.faturado} />
         <StatCard label="Total saídas" valor={dados.totalSaidas} />
       </section>
 
-      <section className="mt-5">
+      <section className="mt-6 animate-fade-in-up" style={{ animationDelay: '240ms' }}>
+        <EntriesVsExits data={dados.historicoMensal} />
+      </section>
+
+      <section className="mt-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <MovementList itens={dados.ultimasMovimentacoes} />
       </section>
 
