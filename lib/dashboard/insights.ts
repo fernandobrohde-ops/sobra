@@ -142,7 +142,16 @@ export function generateInsights(input: GenerateInsightsInput): Insight[] {
   const top = topCategorias[0]
   if (top && totalSaidas > 0) {
     const pctTop = (top.total / totalSaidas) * 100
-    if (pctTop >= 40) {
+    if (topCategorias.length === 1) {
+      insights.push({
+        id: 'unica-saida',
+        icon: 'spotlight',
+        title: `Sua única saída foi ${top.nome}`,
+        text: `${formatBRLCompact(top.total)} saiu nessa categoria. Com mais lançamentos, os insights ficam mais ricos.`,
+        tone: 'neutral',
+        priority: 85,
+      })
+    } else if (pctTop >= 40) {
       insights.push({
         id: 'top-categoria-concentrada',
         icon: 'spotlight',
@@ -233,7 +242,7 @@ export function generateInsights(input: GenerateInsightsInput): Insight[] {
         id: 'sem-dados',
         icon: 'sparkles',
         title: 'Comece registrando suas movimentações',
-        text: 'Quanto mais lançamentos, melhores os insights. Toque no + lá embaixo.',
+        text: 'Quanto mais lançamentos, melhores os insights. Use o botão de nova movimentação para começar.',
         tone: 'neutral',
         priority: 1,
       })

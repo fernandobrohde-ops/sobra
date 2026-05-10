@@ -41,7 +41,7 @@ export default async function AppLayout({
       <div className="min-h-screen flex flex-col bg-sobra-bg">
         <Navbar iniciais={iniciais} />
         <div className="flex-1">
-          <div className="max-w-[960px] mx-auto px-4 py-6 md:py-8">{children}</div>
+          <div className="max-w-[960px] mx-auto px-4 pt-6 pb-28 md:py-8">{children}</div>
         </div>
       </div>
     </ToastProvider>

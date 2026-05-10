@@ -11,7 +11,7 @@ import { LoginForm } from './login-form'
 
 export const metadata: Metadata = {
   title: 'Entrar',
-  description: 'Acesse sua conta no Sobra com magic link ou Google.',
+  description: 'Acesse sua conta no Sobra com e-mail e senha ou Google.',
 }
 
 export default function LoginPage() {
@@ -28,7 +28,7 @@ export default function LoginPage() {
             Entre no Sobra
           </h1>
           <p className="text-caption text-sobra-ink/60 text-center mb-6">
-            Sem senha. Mandamos um link no seu e-mail.
+            Acesse com seu e-mail e senha ou continue com Google.
           </p>
 
           {/* Suspense é exigido pelo Next 14 quando usamos useSearchParams() dentro do client. */}

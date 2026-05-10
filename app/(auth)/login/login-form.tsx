@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Formulário de login — magic link + Google OAuth (briefing 4.1).
+ * Formulário de login — e-mail/senha + Google OAuth (briefing 4.1).
  *
  * Estados:
  *  - idle: form pronto pra preencher
@@ -44,7 +44,7 @@ export function LoginForm() {
     return url.toString()
   }, [searchParams])
 
-  async function onSubmitMagicLink(event: FormEvent<HTMLFormElement>) {
+  async function onSubmitLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (status === 'submitting') return
 
@@ -89,7 +89,7 @@ export function LoginForm() {
   // ----- View: form padrão -----
   return (
     <div className="space-y-4">
-      <form onSubmit={onSubmitMagicLink} className="space-y-3" noValidate>
+      <form onSubmit={onSubmitLogin} className="space-y-4" noValidate>
         <label className="block">
           <span className="text-caption text-sobra-ink/70 mb-1.5 block">
             Seu e-mail
@@ -105,30 +105,31 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={status === 'submitting'}
-         />
-</label>
+          />
+        </label>
 
-<label className="sobra-label">
-  <span>Senha</span>
-
-  <input
-    type="password"
-    autoComplete="current-password"
-    required
-    placeholder="Sua senha"
-    className="sobra-input"
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    disabled={status === 'submitting'}
-    />
-   </label>
+        <label className="block">
+          <span className="text-caption text-sobra-ink/70 mb-1.5 block">
+            Senha
+          </span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            required
+            placeholder="Sua senha"
+            className="sobra-input"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={status === 'submitting'}
+          />
+        </label>
 
         <button
           type="submit"
           className="sobra-btn-primary w-full"
-          disabled={status === 'submitting' || !email}
+          disabled={status === 'submitting' || !email || !password}
         >
-          {status === 'submitting' ? 'Enviando...' : 'Entrar'}
+          {status === 'submitting' ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
 
@@ -162,7 +163,7 @@ export function LoginForm() {
 function traduzirErro(raw: string): string {
   const m = raw.toLowerCase()
   if (m.includes('rate') || m.includes('too many'))
-    return 'Você pediu vários links seguidos. Tenta de novo em alguns minutos.'
+    return 'Muitas tentativas seguidas. Tenta de novo em alguns minutos.'
   if (m.includes('invalid') && m.includes('email'))
     return 'Esse e-mail não parece válido. Confere e tenta de novo.'
   if (m.includes('network') || m.includes('failed to fetch'))

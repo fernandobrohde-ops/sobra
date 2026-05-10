@@ -13,8 +13,11 @@ import { HeroCard } from '@/components/dashboard/hero-card'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { MovementList } from '@/components/dashboard/movement-list'
 import { PeriodFilter } from '@/components/dashboard/period-filter'
+import { InsightsSection } from '@/components/dashboard/insights-section'
+import { EntriesVsExits } from '@/components/dashboard/entries-vs-exits'
 import { parsePeriodParam } from './period'
 import { AddLancamentoFab } from '@/components/lancamento/add-lancamento-fab'
+import { generateInsights, getTopCategoriasGasto } from '@/lib/dashboard/insights'
 import type { CategoriaOpcao } from '@/components/lancamento/add-lancamento-drawer'
 import type { TipoLancamento } from '@/types/database'
 
@@ -35,11 +38,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   // O layout (app)/layout.tsx já redireciona se !user; aqui só assegura tipo.
   if (!user) return null
 
-  // Dashboard + categorias do drawer em paralelo.
-  const [dados, categorias] = await Promise.all([
+  // Dashboard + categorias do drawer + categorias de gasto em paralelo.
+  const [dados, categorias, topCategorias] = await Promise.all([
     getDashboardData(supabase, user.id, period),
     fetchCategorias(supabase, user.id),
+    getTopCategoriasGasto(supabase, user.id, range.start, range.end),
   ])
+
+  const insights = generateInsights({
+    sobra: dados.sobra,
+    faturado: dados.faturado,
+    totalSaidas: dados.totalSaidas,
+    variacao: dados.variacao,
+    sobraAnterior: dados.sobraAnterior,
+    topCategorias,
+    historicoMensal: dados.historicoMensal,
+  })
 
   return (
     <>
@@ -55,8 +69,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         sobra={dados.sobra}
         faturado={dados.faturado}
         variacao={dados.variacao}
+        sobraAnterior={dados.sobraAnterior}
         periodoLabel={range.label}
+        historicoMensal={dados.historicoMensal}
       />
+
+      <section className="mt-5">
+        <InsightsSection insights={insights} />
+      </section>
 
       <section className="grid grid-cols-2 gap-3 mt-5">
         <StatCard label="A receber" valor={dados.aReceber} tone="positive" />
@@ -66,7 +86,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </section>
 
       <section className="mt-5">
-        <MovementList itens={dados.ultimasMovimentacoes} />
+        <EntriesVsExits data={dados.historicoMensal} />
+      </section>
+
+      <section className="mt-5">
+        <MovementList itens={dados.ultimasMovimentacoes} categorias={categorias} />
       </section>
 
       <AddLancamentoFab categorias={categorias} />

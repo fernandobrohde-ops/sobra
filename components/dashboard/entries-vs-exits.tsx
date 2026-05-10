@@ -13,6 +13,8 @@ interface EntriesVsExitsProps {
 }
 
 export function EntriesVsExits({ data }: EntriesVsExitsProps) {
+  const hasAnyMovement = data.some((d) => d.entradas > 0 || d.saidas > 0)
+
   // Top dos valores pra normalizar altura
   const max = Math.max(
     1,
@@ -29,11 +31,11 @@ export function EntriesVsExits({ data }: EntriesVsExitsProps) {
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-h2 font-semibold text-sobra-ink">Entradas e saídas</h2>
         <span className="text-micro uppercase tracking-wider text-sobra-ink-faint">
-          últimos 6 meses
+          histórico dos últimos 6 meses
         </span>
       </div>
       <p className="text-caption text-sobra-ink-muted mb-5">
-        Tudo que entrou e tudo que saiu, mês a mês.
+        Histórico mês a mês, independente do filtro escolhido acima.
       </p>
 
       {/* Legenda */}
@@ -43,29 +45,40 @@ export function EntriesVsExits({ data }: EntriesVsExitsProps) {
       </div>
 
       {/* Barras */}
-      <div className="flex items-end justify-between gap-3 h-32 mb-3">
-        {data.map((m, i) => {
-          const hEntradas = max > 0 ? (m.entradas / max) * 100 : 0
-          const hSaidas = max > 0 ? (m.saidas / max) * 100 : 0
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 group">
-              <div className="flex items-end gap-1 w-full justify-center h-full">
-                <Bar
-                  height={hEntradas}
-                  color="#1D9E75"
-                  hoverColor="#0F6E56"
-                  tooltip={`Entradas em ${m.label}: ${formatBRL(m.entradas)}`}
-                />
-                <Bar
-                  height={hSaidas}
-                  color="#D4D4CD"
-                  hoverColor="#A4A49B"
-                  tooltip={`Saídas em ${m.label}: ${formatBRL(m.saidas)}`}
-                />
-              </div>
-            </div>
-          )
-        })}
+      <div className="relative h-32 mb-3">
+        <div className="absolute inset-x-0 bottom-0 h-px bg-sobra-line-soft" aria-hidden />
+        <div className="absolute inset-x-0 top-1/2 h-px bg-sobra-line-soft/70" aria-hidden />
+
+        {hasAnyMovement ? (
+          <div className="relative flex items-end justify-between gap-3 h-full">
+            {data.map((m, i) => {
+              const hEntradas = max > 0 ? (m.entradas / max) * 100 : 0
+              const hSaidas = max > 0 ? (m.saidas / max) * 100 : 0
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 group h-full">
+                  <div className="flex items-end gap-1.5 w-full justify-center h-full">
+                    <Bar
+                      height={hEntradas}
+                      color="#1D9E75"
+                      hoverColor="#0F6E56"
+                      tooltip={`Entradas em ${m.label}: ${formatBRL(m.entradas)}`}
+                    />
+                    <Bar
+                      height={hSaidas}
+                      color="#B8B8AF"
+                      hoverColor="#8F8F86"
+                      tooltip={`Saídas em ${m.label}: ${formatBRL(m.saidas)}`}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="h-full flex items-center justify-center text-caption text-sobra-ink-muted text-center px-6">
+            Registre algumas entradas e saídas para ver a evolução do caixa.
+          </div>
+        )}
       </div>
 
       {/* Labels dos meses */}
@@ -108,11 +121,11 @@ function Bar({
   tooltip: string
 }) {
   // Altura mínima visível pra pequeno valor não sumir
-  const h = height > 0 ? Math.max(height, 2) : 0
+  const h = height > 0 ? Math.max(height, 8) : 0
   return (
     <div
       title={tooltip}
-      className="w-3 rounded-t transition-colors cursor-default"
+      className="w-3.5 rounded-t transition-colors cursor-default"
       style={{
         height: `${h}%`,
         backgroundColor: color,
