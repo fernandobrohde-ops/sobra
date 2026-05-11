@@ -11,6 +11,8 @@ import { CategoriasSection } from './categorias-section'
 import { AlertasForm } from './alertas-form'
 import { PlanoSection } from './plano-section'
 import { SairButton } from './sair-button'
+import { WhatsappSection } from './whatsapp-section'
+import { getStatusVinculo } from '@/lib/actions/whatsapp'
 
 export const metadata: Metadata = { title: 'Configurações' }
 
@@ -79,6 +81,15 @@ export default async function ConfiguracoesPage() {
 
   if (!profile) return null
 
+  // Status do vínculo WhatsApp pra hidratação inicial da seção
+  const statusVinc = await getStatusVinculo()
+  const wppInicial = statusVinc.ok
+    ? statusVinc.data
+    : { vinculado: false, whatsapp_number: null, verified_at: null }
+
+  // Número público do Sobra que o usuário envia mensagem
+  const numeroSobra = process.env.NEXT_PUBLIC_SOBRA_WHATSAPP ?? '+55 54 3698-3995'
+
   return (
     <>
       <div className="mb-6">
@@ -113,6 +124,10 @@ export default async function ConfiguracoesPage() {
             }}
             temWhatsapp={!!profile.whatsapp}
           />
+        </Section>
+
+        <Section titulo="Assistente WhatsApp">
+          <WhatsappSection inicial={wppInicial} numeroSobra={numeroSobra} />
         </Section>
 
         <Section titulo="Plano">
