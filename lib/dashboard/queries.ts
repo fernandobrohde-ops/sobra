@@ -56,7 +56,9 @@ export interface MovimentacaoListItem {
   tipo: TipoLancamento
   status: StatusLancamento
   data: string  // ISO date
-  categoria: { nome: string; cor: string | null } | null
+  data_vencimento: string | null
+  cliente_fornecedor: string | null
+  categoria: { id: string; nome: string; cor: string | null } | null
   recorrencia: 'mensal' | 'semanal' | 'anual' | null
 }
 
@@ -381,8 +383,8 @@ async function listUltimas(
   const { data, error } = await supabase
     .from('lancamentos')
     .select(`
-      id, descricao, valor, tipo, status, data, recorrencia,
-      categoria:categorias ( nome, cor )
+      id, descricao, valor, tipo, status, data, data_vencimento, cliente_fornecedor, recorrencia,
+      categoria:categorias ( id, nome, cor )
     `)
     .eq('user_id', userId)
     .gte('data', start)
@@ -405,7 +407,9 @@ async function listUltimas(
       tipo: row.tipo as TipoLancamento,
       status: row.status as StatusLancamento,
       data: row.data,
-      categoria: cat ? { nome: cat.nome, cor: cat.cor } : null,
+      data_vencimento: row.data_vencimento,
+      cliente_fornecedor: row.cliente_fornecedor,
+      categoria: cat ? { id: cat.id, nome: cat.nome, cor: cat.cor } : null,
       recorrencia: row.recorrencia ?? null,
     }
   })

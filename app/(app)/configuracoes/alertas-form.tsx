@@ -16,9 +16,10 @@ interface AlertasFormProps {
   }
   /** Se false, desabilita o toggle de WhatsApp e mostra hint. */
   temWhatsapp: boolean
+  isPro?: boolean
 }
 
-export function AlertasForm({ initial, temWhatsapp }: AlertasFormProps) {
+export function AlertasForm({ initial, temWhatsapp, isPro = false }: AlertasFormProps) {
   const router = useRouter()
   const [whatsappAtivo, setWhatsappAtivo] = useState(initial.whatsapp_ativo)
   const [emailAtivo, setEmailAtivo] = useState(initial.email_ativo)
@@ -33,7 +34,7 @@ export function AlertasForm({ initial, temWhatsapp }: AlertasFormProps) {
     setSubmitting(true)
     setMsg(null)
     const res = await updateAlertas({
-      whatsapp_ativo: whatsappAtivo,
+      whatsapp_ativo: isPro ? whatsappAtivo : false,
       email_ativo: emailAtivo,
       alerta_vencimento_dias: dias,
       resumo_semanal: resumo,
@@ -51,9 +52,15 @@ export function AlertasForm({ initial, temWhatsapp }: AlertasFormProps) {
     <form onSubmit={onSubmit} className="space-y-4">
       <Toggle
         label="Avisar pelo WhatsApp"
-        hint={temWhatsapp ? 'Mandamos no número do seu perfil.' : 'Cadastre um WhatsApp no perfil pra ativar.'}
-        checked={whatsappAtivo && temWhatsapp}
-        disabled={!temWhatsapp}
+        hint={
+          !isPro
+            ? 'Alertas WhatsApp fazem parte do plano Pro.'
+            : temWhatsapp
+            ? 'Mandamos no número do seu perfil.'
+            : 'Cadastre um WhatsApp no perfil pra ativar.'
+        }
+        checked={whatsappAtivo && temWhatsapp && isPro}
+        disabled={!temWhatsapp || !isPro}
         onChange={setWhatsappAtivo}
       />
       <Toggle

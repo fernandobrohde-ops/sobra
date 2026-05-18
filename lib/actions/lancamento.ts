@@ -9,6 +9,7 @@
  */
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { FREE_LANCAMENTOS_MENSAIS, getPlanoUsuario } from '@/lib/billing/plano'
 import type { TipoLancamento, StatusLancamento } from '@/types/database'
 
 export type Recorrencia = 'mensal' | 'semanal' | 'anual' | null
@@ -38,6 +39,24 @@ export async function addLancamento(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Sessão expirou. Entra de novo.' }
+
+  const plano = await getPlanoUsuario(supabase, user.id)
+  if (plano.isFree) {
+    if (input.recorrencia !== null) {
+      return { ok: false, error: 'Recorrências estão disponíveis no plano Pro.' }
+    }
+
+    const { count } = await supabase
+      .from('lancamentos')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', inicioMesAtual().toISOString())
+      .lt('created_at', inicioProximoMes().toISOString())
+
+    if ((count ?? 0) >= FREE_LANCAMENTOS_MENSAIS) {
+      return { ok: false, error: 'Você atingiu o limite de 30 lançamentos do plano Free.' }
+    }
+  }
 
   // Validações server-side. O DB também valida via CHECK, mas damos uma
   // mensagem amigável aqui antes de bater no banco.
@@ -108,6 +127,16 @@ function traduzirErro(raw: string): string {
   return 'Não consegui salvar agora. Tenta de novo.'
 }
 
+function inicioMesAtual() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+}
+
+function inicioProximoMes() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1)
+}
+
 // ---------------------------------------------------------------------
 // updateLancamento — usado pelo drawer em modo "editar"
 // ---------------------------------------------------------------------
@@ -124,6 +153,11 @@ export async function updateLancamento(
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Sessão expirou. Entra de novo.' }
+
+  const plano = await getPlanoUsuario(supabase, user.id)
+  if (plano.isFree && input.recorrencia !== null) {
+    return { ok: false, error: 'Recorrências estão disponíveis no plano Pro.' }
+  }
 
   const erro = validar(input)
   if (erro) return { ok: false, error: erro }

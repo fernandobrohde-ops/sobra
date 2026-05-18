@@ -13,6 +13,8 @@ import { PlanoSection } from './plano-section'
 import { SairButton } from './sair-button'
 import { WhatsappSection } from './whatsapp-section'
 import { getStatusVinculo } from '@/lib/actions/whatsapp'
+import { PRO_STATUSES } from '@/lib/billing/plano'
+import { UpgradeCard } from '@/components/billing/upgrade-card'
 
 export const metadata: Metadata = { title: 'Configurações' }
 
@@ -23,8 +25,11 @@ interface ProfileSummary {
   nome_negocio: string
   setor: Setor
   whatsapp: string | null
+  avatar_url: string | null
   plano: Plano
-  trial_fim: string | null
+  trial_fim?: string | null
+  trial_ends_at?: string | null
+  subscription_status?: string | null
   stripe_subscription_id: string | null
 }
 
@@ -50,7 +55,7 @@ export default async function ConfiguracoesPage() {
   const [profileRes, categoriasRes, alertasRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('nome_negocio, setor, whatsapp, plano, trial_fim, stripe_subscription_id')
+      .select('*')
       .eq('id', user.id)
       .single(),
     supabase
@@ -81,6 +86,16 @@ export default async function ConfiguracoesPage() {
 
   if (!profile) return null
 
+  const isPro = profile.plano === 'pro' && PRO_STATUSES.has(profile.subscription_status ?? '')
+
+  const { data: avatarProfile } = await supabase
+    .from('profiles')
+    .select('avatar_url')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  profile.avatar_url = avatarProfile?.avatar_url ?? null
+
   // Status do vínculo WhatsApp pra hidratação inicial da seção
   const statusVinc = await getStatusVinculo()
   const wppInicial = statusVinc.ok
@@ -95,61 +110,110 @@ export default async function ConfiguracoesPage() {
       <div className="mb-6">
         <h1 className="text-h1 font-medium text-sobra-ink">Configurações</h1>
         <p className="text-caption text-sobra-ink/60">
-          Personalize seu negócio, categorias e alertas.
+          Organize seu perfil, assistente e preferências do Sobra.
         </p>
       </div>
 
       <div className="space-y-5">
-        <Section titulo="Perfil">
-          <PerfilForm
-            initial={{
-              nome_negocio: profile.nome_negocio,
-              setor: profile.setor,
-              whatsapp: profile.whatsapp ?? '',
-            }}
-          />
-        </Section>
+        <section className="relative overflow-hidden rounded-card border border-sobra-green-soft bg-sobra-green-pale p-5 md:p-6 shadow-card">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-xl">
+              <p className="text-micro uppercase tracking-wider text-sobra-green mb-2">
+                Diferencial do Sobra
+              </p>
+              <h2 className="text-h1 font-medium text-sobra-ink">Assistente WhatsApp</h2>
+              <p className="mt-2 text-body-sm text-sobra-ink-soft">
+                Registre entradas, saídas e contas por conversa, com respostas usando os dados reais do seu negócio.
+              </p>
+            </div>
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-3 py-1.5 text-caption font-medium text-sobra-green shadow-xs">
+              <span className="h-2 w-2 rounded-full bg-sobra-green" />
+              {wppInicial.vinculado ? 'Ativo' : 'Disponível'}
+            </div>
+          </div>
+          <div className="mt-5 border-t border-sobra-green-soft/70 pt-5">
+            {isPro ? (
+              <WhatsappSection inicial={wppInicial} numeroSobra={numeroSobra} />
+            ) : (
+              <UpgradeCard
+                compact
+                message="Alertas e assistente WhatsApp estão disponíveis no plano Pro."
+              />
+            )}
+          </div>
+        </section>
 
-        <Section titulo="Categorias">
-          <CategoriasSection categorias={categorias} />
-        </Section>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="space-y-5">
+            <Section titulo="Perfil" descricao="Dados públicos do negócio e aparência da conta.">
+              <PerfilForm
+                initial={{
+                  nome_negocio: profile.nome_negocio,
+                  setor: profile.setor,
+                  whatsapp: profile.whatsapp ?? '',
+                  avatar_url: profile.avatar_url ?? '',
+                }}
+              />
+            </Section>
 
-        <Section titulo="Alertas">
-          <AlertasForm
-            initial={{
-              whatsapp_ativo: alertas.whatsapp_ativo,
-              email_ativo: alertas.email_ativo,
-              alerta_vencimento_dias: alertas.alerta_vencimento_dias,
-              resumo_semanal: alertas.resumo_semanal,
-            }}
-            temWhatsapp={!!profile.whatsapp}
-          />
-        </Section>
+            <Section titulo="Categorias" descricao="Organização usada no dashboard e nos lançamentos.">
+              <CategoriasSection categorias={categorias} />
+            </Section>
+          </div>
 
-        <Section titulo="Assistente WhatsApp">
-          <WhatsappSection inicial={wppInicial} numeroSobra={numeroSobra} />
-        </Section>
+          <div className="space-y-5">
+            <Section titulo="Alertas" descricao="Avisos de vencimento e resumo semanal.">
+              <AlertasForm
+                initial={{
+                  whatsapp_ativo: alertas.whatsapp_ativo,
+                  email_ativo: alertas.email_ativo,
+                  alerta_vencimento_dias: alertas.alerta_vencimento_dias,
+                  resumo_semanal: alertas.resumo_semanal,
+                }}
+                temWhatsapp={!!profile.whatsapp}
+                isPro={isPro}
+              />
+            </Section>
 
-        <Section titulo="Plano">
-          <PlanoSection
-            plano={profile.plano}
-            trialFim={profile.trial_fim}
-            temAssinatura={!!profile.stripe_subscription_id}
-          />
-        </Section>
+            <Section titulo="Plano" descricao="Assinatura e acesso atual.">
+              <PlanoSection
+                plano={profile.plano ?? 'free'}
+                trialFim={profile.trial_ends_at ?? profile.trial_fim ?? null}
+                temAssinatura={
+                  profile.subscription_status === 'active' ||
+                  profile.subscription_status === 'trialing'
+                }
+              />
+            </Section>
 
-        <div className="pt-2">
-          <SairButton />
+            <div className="rounded-card border border-sobra-line bg-white p-4 shadow-xs">
+              <SairButton />
+            </div>
+          </div>
         </div>
+
       </div>
     </>
   )
 }
 
-function Section({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Section({
+  titulo,
+  descricao,
+  children,
+}: {
+  titulo: string
+  descricao?: string
+  children: React.ReactNode
+}) {
   return (
     <section className="sobra-card">
-      <h2 className="text-h2 font-medium text-sobra-ink mb-4">{titulo}</h2>
+      <div className="mb-4">
+        <h2 className="text-h2 font-medium text-sobra-ink">{titulo}</h2>
+        {descricao && (
+          <p className="mt-1 text-caption text-sobra-ink-muted">{descricao}</p>
+        )}
+      </div>
       {children}
     </section>
   )

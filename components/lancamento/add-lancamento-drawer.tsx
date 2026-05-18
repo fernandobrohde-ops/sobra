@@ -17,6 +17,7 @@ import {
 } from '@/lib/actions/lancamento'
 import type { TipoLancamento, StatusLancamento } from '@/types/database'
 import { toDateOnly } from '@/lib/utils/period'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
 
 export interface CategoriaOpcao {
   id: string
@@ -45,6 +46,7 @@ interface AddLancamentoDrawerProps {
   open: boolean
   onClose: () => void
   categorias: CategoriaOpcao[]
+  isPro?: boolean
   /** Quando presente, o drawer entra em modo "editar". */
   inicial?: LancamentoInicial | null
 }
@@ -64,6 +66,7 @@ export function AddLancamentoDrawer({
   open,
   onClose,
   categorias,
+  isPro = false,
   inicial = null,
 }: AddLancamentoDrawerProps) {
   const router = useRouter()
@@ -86,6 +89,7 @@ export function AddLancamentoDrawer({
 
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
 
   // Categorias do tipo selecionado. Quando troca tipo, reseta a categoria
   // se a atual não pertencer ao novo tipo.
@@ -127,6 +131,10 @@ export function AddLancamentoDrawer({
     setRecorrencia(inicial?.recorrencia ?? null)
     setErrorMsg(null)
   }, [open, inicial])
+
+  useEffect(() => {
+    if (!isPro && recorrencia !== null) setRecorrencia(null)
+  }, [isPro, recorrencia])
 
   function reset() {
     setDescricao('')
@@ -356,7 +364,14 @@ export function AddLancamentoDrawer({
                 </span>
                 <Switch
                   ativo={recorrencia !== null}
-                  onChange={(on) => setRecorrencia(on ? 'mensal' : null)}
+                  disabled={!isPro}
+                  onChange={(on) => {
+                    if (!isPro) {
+                      setUpgradeOpen(true)
+                      return
+                    }
+                    setRecorrencia(on ? 'mensal' : null)
+                  }}
                 />
               </div>
               {recorrencia !== null && (
@@ -376,7 +391,9 @@ export function AddLancamentoDrawer({
                 </div>
               )}
               <p className="text-caption text-sobra-ink-muted mt-1.5">
-                {recorrencia
+                {!isPro
+                  ? 'Recorrências fazem parte do Sobra Pro.'
+                  : recorrencia
                   ? 'Vai aparecer marcada como 🔁 recorrente.'
                   : 'Marque se for um lançamento que repete (aluguel, assinatura, etc).'}
               </p>
@@ -412,6 +429,11 @@ export function AddLancamentoDrawer({
           </div>
         </form>
       </div>
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        message="Recorrências estão disponíveis no plano Pro."
+      />
     </div>
   )
 }
@@ -448,16 +470,25 @@ function ToggleButton({
   )
 }
 
-function Switch({ ativo, onChange }: { ativo: boolean; onChange: (v: boolean) => void }) {
+function Switch({
+  ativo,
+  onChange,
+  disabled = false,
+}: {
+  ativo: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+}) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={ativo}
+      aria-disabled={disabled}
       onClick={() => onChange(!ativo)}
       className={`relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ${
         ativo ? 'bg-sobra-green' : 'bg-sobra-line'
-      }`}
+      } ${disabled ? 'opacity-60' : ''}`}
     >
       <span
         className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${

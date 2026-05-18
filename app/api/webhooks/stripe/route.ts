@@ -1,37 +1,12 @@
-/*
- * Webhook do Stripe (briefing 5.4).
- *
- * Recebe eventos do Stripe e atualiza profile.plano e
- * profile.stripe_subscription_id de acordo. Eventos tratados:
- *  - checkout.session.completed (assinatura nova)
- *  - customer.subscription.updated (mudou de plano)
- *  - customer.subscription.deleted (cancelou)
- *
- * Importante: usamos a service_role key porque o webhook não tem
- * sessão de usuário (vem do Stripe direto pra nós).
- *
- * Para validar no Stripe Dashboard:
- *   1. Adicione um endpoint apontando pra https://seu-app.com/api/webhooks/stripe
- *   2. Selecione os eventos acima.
- *   3. Copie o webhook secret pra STRIPE_WEBHOOK_SECRET.
- */
-
-
-
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 
-import type { Database, Plano } from '@/types/database'
+import type { Database } from '@/types/database'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-const STRIPE_PRICE_IDS = {
-  essencial: process.env.STRIPE_PRICE_ESSENCIAL || '',
-  pro: process.env.STRIPE_PRICE_PRO || '',
-}
 
-// Service role bypassa RLS — necessário porque o webhook não tem sessão.
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -53,9 +28,11 @@ export async function POST(request: NextRequest) {
   }
 
   let event: Stripe.Event
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder')
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+    apiVersion: '2025-02-24.acacia',
+  })
 
-try {
+  try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
   } catch (err) {
     console.error('Webhook signature inválida:', err)
@@ -67,80 +44,68 @@ try {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object
-        const userId = session.metadata?.sobra_user_id
+        const session = event.data.object as Stripe.Checkout.Session
         const subscriptionId = typeof session.subscription === 'string'
           ? session.subscription
           : session.subscription?.id
 
-        if (!userId || !subscriptionId) break
+        if (!subscriptionId) break
 
-        // Busca o subscription pra saber qual price_id e mapear pro plano.
-        const sub = await stripe.subscriptions.retrieve(subscriptionId)
-        const priceId = sub.items.data[0]?.price.id
-        const plano = priceIdToPlano(priceId)
-
-        await supabase
-          .from('profiles')
-          .update({
-            plano,
-            stripe_subscription_id: subscriptionId,
-            stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
-          })
-          .eq('id', userId)
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+        await updateProfileFromSubscription(supabase, subscription, session.metadata?.sobra_user_id)
         break
       }
 
       case 'customer.subscription.updated': {
-        const sub = event.data.object
-        const userId = sub.metadata?.sobra_user_id
-        if (!userId) break
-
-        const priceId = sub.items.data[0]?.price.id
-        const plano = priceIdToPlano(priceId)
-
-        // Cancelado mas ainda no período pago? Mantemos o plano até a
-        // data fim. Aqui só atualizamos quando o status muda de fato.
-        const ativo = ['active', 'trialing'].includes(sub.status)
-        await supabase
-          .from('profiles')
-          .update({
-            plano: ativo ? plano : 'gratis',
-            stripe_subscription_id: ativo ? sub.id : null,
-          })
-          .eq('id', userId)
+        const subscription = event.data.object as Stripe.Subscription
+        await updateProfileFromSubscription(supabase, subscription)
         break
       }
 
       case 'customer.subscription.deleted': {
-        const sub = event.data.object
-        const userId = sub.metadata?.sobra_user_id
-        if (!userId) break
-
-        await supabase
-          .from('profiles')
-          .update({ plano: 'gratis', stripe_subscription_id: null })
-          .eq('id', userId)
+        const subscription = event.data.object as Stripe.Subscription
+        await updateProfileFromSubscription(supabase, subscription)
         break
       }
 
       default:
-        // Ignoramos eventos não esperados sem retornar erro
-        // (Stripe espera 2xx pra não retentar).
         break
     }
   } catch (err) {
     console.error('Erro processando webhook:', err)
-    // Stripe vai retentar com backoff automático.
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 
   return NextResponse.json({ received: true })
 }
 
-function priceIdToPlano(priceId: string | undefined): Plano {
-  if (!priceId) return 'gratis'
-  if (priceId === STRIPE_PRICE_IDS.essencial) return 'essencial'
-  if (priceId === STRIPE_PRICE_IDS.pro) return 'pro'
-  return 'gratis'
+async function updateProfileFromSubscription(
+  supabase: ReturnType<typeof serviceClient>,
+  subscription: Stripe.Subscription,
+  metadataUserId?: string
+) {
+  const userId = metadataUserId ?? subscription.metadata?.sobra_user_id
+  const customerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : subscription.customer.id
+
+  const ativo = subscription.status === 'active' || subscription.status === 'trialing'
+  const updates = {
+    plano: ativo ? 'pro' : 'free',
+    subscription_status: subscription.status,
+    stripe_customer_id: customerId,
+    stripe_subscription_id: ativo ? subscription.id : null,
+    trial_ends_at: subscription.trial_end
+      ? new Date(subscription.trial_end * 1000).toISOString()
+      : null,
+  }
+
+  const { error } = userId
+    ? await supabase.from('profiles').update(updates).eq('id', userId)
+    : await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('stripe_customer_id', customerId)
+
+  if (error) throw error
 }

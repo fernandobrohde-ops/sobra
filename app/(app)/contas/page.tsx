@@ -13,8 +13,12 @@ import { parseAbaParam, type Aba } from './aba'
 import { ContasList } from './contas-list'
 import type { CategoriaOpcao } from '@/components/lancamento/add-lancamento-drawer'
 import { classificarVencimento, urgenciaScore } from '@/lib/utils/format'
+import { getPlanoUsuario } from '@/lib/billing/plano'
+import { UpgradeCard } from '@/components/billing/upgrade-card'
 
 export const metadata: Metadata = { title: 'Contas' }
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface ContasPageProps {
   searchParams: { aba?: string }
@@ -30,9 +34,10 @@ export default async function ContasPage({ searchParams }: ContasPageProps) {
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const [pendentes, categorias] = await Promise.all([
+  const [pendentes, categorias, plano] = await Promise.all([
     listPendentes(supabase, user.id, tipo),
     fetchCategorias(supabase, user.id),
+    getPlanoUsuario(supabase, user.id),
   ])
 
   // Refinamos a ordem aqui — o banco já trouxe ordenado por data_vencimento
@@ -57,7 +62,22 @@ export default async function ContasPage({ searchParams }: ContasPageProps) {
 
       <ContasTabs atual={aba} />
 
-      <ContasList itens={ordenados} categorias={categorias} total={total} aba={aba} />
+      {plano.isFree && (
+        <div className="mb-4">
+          <UpgradeCard
+            compact
+            message="Múltiplas contas financeiras estão disponíveis no plano Pro."
+          />
+        </div>
+      )}
+
+      <ContasList
+        itens={ordenados}
+        categorias={categorias}
+        total={total}
+        aba={aba}
+        isPro={plano.isPro}
+      />
     </>
   )
 }

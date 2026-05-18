@@ -22,6 +22,11 @@ export const stripe = new Stripe(key ?? 'sk_test_placeholder', {
   typescript: true,
 })
 
+export const STRIPE_PRO_PRICE_ID =
+  process.env.STRIPE_PRICE_ID ??
+  process.env.STRIPE_PRICE_PRO ??
+  'price_1TYQjCKBWN0nmSDXVTHL5rHG'
+
 /**
  * Mapeamento de plano interno → Price ID do Stripe.
  * Configure depois de criar os produtos no dashboard do Stripe.
@@ -30,7 +35,7 @@ export const stripe = new Stripe(key ?? 'sk_test_placeholder', {
  */
 export const STRIPE_PRICE_IDS = {
   essencial: process.env.STRIPE_PRICE_ESSENCIAL ?? 'price_essencial_placeholder',
-  pro:       process.env.STRIPE_PRICE_PRO       ?? 'price_pro_placeholder',
+  pro:       STRIPE_PRO_PRICE_ID,
 } as const
 
 export type PlanoStripe = keyof typeof STRIPE_PRICE_IDS

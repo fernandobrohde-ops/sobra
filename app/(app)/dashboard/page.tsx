@@ -16,12 +16,18 @@ import { MovementList } from '@/components/dashboard/movement-list'
 import { PeriodFilter } from '@/components/dashboard/period-filter'
 import { InsightsSection } from '@/components/dashboard/insights-section'
 import { EntriesVsExits } from '@/components/dashboard/entries-vs-exits'
+import { DashboardAutoRefresh } from '@/components/dashboard/dashboard-auto-refresh'
+import { UsageCard } from '@/components/billing/usage-card'
+import { UpgradeCard } from '@/components/billing/upgrade-card'
+import { getBillingContext } from '@/lib/billing/plano'
 import { parsePeriodParam } from './period'
 import { AddLancamentoFab } from '@/components/lancamento/add-lancamento-fab'
 import type { CategoriaOpcao } from '@/components/lancamento/add-lancamento-drawer'
 import type { TipoLancamento } from '@/types/database'
 
 export const metadata: Metadata = { title: 'Dashboard' }
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface DashboardPageProps {
   searchParams: { periodo?: string }
@@ -39,10 +45,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!user) return null
 
   // Dashboard + categorias do drawer + breakdown pra insights, em paralelo.
-  const [dados, categorias, topCategorias] = await Promise.all([
+  const [dados, categorias, topCategorias, billing] = await Promise.all([
     getDashboardData(supabase, user.id, period),
     fetchCategorias(supabase, user.id),
     getTopCategoriasGasto(supabase, user.id, range.start, range.end),
+    getBillingContext(supabase, user.id),
   ])
 
   const insights = generateInsights({
@@ -57,6 +64,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <>
+      <DashboardAutoRefresh />
+
       <div
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5 animate-fade-in-up"
         style={{ animationDelay: '0ms' }}
@@ -79,9 +88,23 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
+      <section className="mt-5 animate-fade-in-up" style={{ animationDelay: '90ms' }}>
+        <UsageCard
+          isPro={billing.isPro}
+          usados={billing.usoMensal.usados}
+          limite={billing.usoMensal.limite}
+        />
+      </section>
+
       <div className="animate-fade-in-up" style={{ animationDelay: '120ms' }}>
         <InsightsSection insights={insights} />
       </div>
+
+      {billing.isFree && (
+        <section className="mt-5 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+          <UpgradeCard compact />
+        </section>
+      )}
 
       <section
         className="grid grid-cols-2 gap-3 mt-6 animate-fade-in-up"
@@ -98,10 +121,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </section>
 
       <section className="mt-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-        <MovementList itens={dados.ultimasMovimentacoes} />
+        <MovementList
+          itens={dados.ultimasMovimentacoes}
+          categorias={categorias}
+          isPro={billing.isPro}
+        />
       </section>
 
-      <AddLancamentoFab categorias={categorias} />
+      <AddLancamentoFab
+        categorias={categorias}
+        isPro={billing.isPro}
+        usoMensal={billing.usoMensal}
+      />
     </>
   )
 }

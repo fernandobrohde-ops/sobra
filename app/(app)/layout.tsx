@@ -34,13 +34,19 @@ export default async function AppLayout({
 
   if (!profile) redirect('/onboarding')
 
+  const { data: avatarProfile } = await supabase
+    .from('profiles')
+    .select('avatar_url')
+    .eq('id', user.id)
+    .maybeSingle()
+
   const iniciais = pegarIniciais(profile.nome_negocio)
 
   return (
     <ToastProvider>
       <div className="min-h-screen flex flex-col bg-sobra-bg">
-        <Navbar iniciais={iniciais} />
-        <div className="flex-1">
+        <Navbar iniciais={iniciais} avatarUrl={avatarProfile?.avatar_url ?? null} />
+        <div className="flex-1 pb-24 md:pb-0">
           <div className="max-w-[960px] mx-auto px-4 py-6 md:py-8">{children}</div>
         </div>
       </div>

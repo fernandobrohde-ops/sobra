@@ -14,8 +14,12 @@ import { getRelatorioMes } from '@/lib/dashboard/queries'
 import { formatBRL, formatPercent } from '@/lib/utils/format'
 import { MesSelector } from './mes-selector'
 import { parseMesParam } from './mes'
+import { getPlanoUsuario } from '@/lib/billing/plano'
+import { UpgradeCard } from '@/components/billing/upgrade-card'
 
 export const metadata: Metadata = { title: 'Relatório' }
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface RelatorioPageProps {
   searchParams: { mes?: string }
@@ -35,7 +39,10 @@ export default async function RelatorioPage({ searchParams }: RelatorioPageProps
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const dados = await getRelatorioMes(supabase, user.id, mes, ano)
+  const [dados, plano] = await Promise.all([
+    getRelatorioMes(supabase, user.id, mes, ano),
+    getPlanoUsuario(supabase, user.id),
+  ])
   const entradas = dados.breakdown.filter((b) => b.tipo === 'entrada')
   const saidas = dados.breakdown.filter((b) => b.tipo === 'saida')
 
@@ -51,14 +58,25 @@ export default async function RelatorioPage({ searchParams }: RelatorioPageProps
         </div>
         <div className="flex items-center gap-2">
           <MesSelector mesAtual={mes} anoAtual={ano} />
-          <a
-            href={pdfUrl}
-            className="sobra-btn-primary !py-2"
-            target="_blank"
-            rel="noopener"
-          >
-            Exportar PDF
-          </a>
+          {plano.isPro ? (
+            <a
+              href={pdfUrl}
+              className="sobra-btn-primary !py-2"
+              target="_blank"
+              rel="noopener"
+            >
+              Exportar PDF
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="sobra-btn-secondary !py-2 opacity-60 cursor-not-allowed"
+              title="Exportação de relatórios está disponível no Pro."
+            >
+              Exportar PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -83,6 +101,27 @@ export default async function RelatorioPage({ searchParams }: RelatorioPageProps
         </div>
       </div>
 
+      {!plano.isPro && (
+        <div className="mb-4">
+          <UpgradeCard
+            compact
+            message="DRE completa e exportação de relatórios estão disponíveis no plano Pro."
+          />
+        </div>
+      )}
+
+      {plano.isPro && (
+        <div className="sobra-card mb-4">
+          <h2 className="text-h2 font-medium mb-4">DRE completa</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <MiniKpi label="Receita bruta" valor={formatBRL(dados.receitaBruta)} />
+            <MiniKpi label="Custos e despesas" valor={formatBRL(dados.custos)} />
+            <MiniKpi label="Lucro líquido" valor={formatBRL(dados.lucroLiquido)} />
+            <MiniKpi label="Margem" valor={formatPercent(dados.margem, 1)} />
+          </div>
+        </div>
+      )}
+
       {/* Breakdown por categoria */}
       <div className="grid md:grid-cols-2 gap-4">
         <CategoriaTabela
@@ -99,6 +138,15 @@ export default async function RelatorioPage({ searchParams }: RelatorioPageProps
         />
       </div>
     </>
+  )
+}
+
+function MiniKpi({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="rounded-control border border-sobra-line bg-sobra-bg px-3 py-2">
+      <p className="text-caption text-sobra-ink/60">{label}</p>
+      <p className="text-body font-medium tabular-nums text-sobra-ink">{valor}</p>
+    </div>
   )
 }
 

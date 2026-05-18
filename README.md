@@ -145,6 +145,45 @@ Em dev, use o [Stripe CLI](https://stripe.com/docs/stripe-cli) pra testar webhoo
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
 ```
 
+### Assistente WhatsApp com IA (chatbot)
+
+O usuário conversa com o "Sobra" pelo WhatsApp e o Claude responde com dados reais do banco — usando function calling pra buscar lançamentos, registrar movimentações ou marcar contas como pagas.
+
+1. **Aplicar a migration** `supabase/migrations/20260505000001_chatbot.sql` (cria `chat_messages` + `whatsapp_sessions` + RPC `gerar_codigo_vinculo_whatsapp`).
+
+2. **Conta Anthropic**: criar em [console.anthropic.com](https://console.anthropic.com), pegar API key em Settings → API Keys.
+
+3. **Setar secrets no Supabase** (adicione ao bloco anterior se ainda não fez):
+   ```bash
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   # E o provider WhatsApp (Twilio OU Z-API)
+   supabase secrets set TWILIO_ACCOUNT_SID=AC... TWILIO_AUTH_TOKEN=... TWILIO_WHATSAPP_FROM='whatsapp:+14155238886'
+   ```
+
+4. **Deploy da Edge Function**:
+   ```bash
+   supabase functions deploy whatsapp-webhook --no-verify-jwt
+   ```
+   `--no-verify-jwt` é necessário porque o webhook não tem JWT do Supabase (vem do WhatsApp direto).
+
+5. **Configurar o webhook no provider**:
+   - **Twilio**: Console → Messaging → WhatsApp Sandbox → Inbound URL = `https://<projeto>.supabase.co/functions/v1/whatsapp-webhook` (POST)
+   - **Z-API**: Painel → Webhooks → Mensagem recebida = mesma URL acima
+
+6. **Testar fluxo de vínculo**:
+   - No app: Configurações → Assistente WhatsApp → "Ativar"
+   - Copiar o código `SOBRA-XXXXXX`
+   - Mandar a mensagem pro número do bot
+   - O webhook valida e marca verified=true
+   - A página detecta via polling e mostra "Assistente ativado ✓"
+
+7. **Testar conversa**:
+   - "Quanto sobrou esse mês?" → bot busca dados e responde
+   - "Recebi 200 do João por consultoria" → bot pede confirmação e registra
+   - "/ajuda" → lista de comandos
+
+**Custos**: Claude Sonnet 4.5 a ~R$ 0,02 por mensagem média. Com 20 msg/dia/usuário no plano paid (R$ 49), custo de IA fica em ~5% da receita.
+
 ### Alertas WhatsApp (briefing 5.2)
 
 1. Escolher um provedor:

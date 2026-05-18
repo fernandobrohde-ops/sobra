@@ -13,6 +13,7 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import { createClient } from '@/lib/supabase/server'
 import { getRelatorioMes } from '@/lib/dashboard/queries'
 import { RelatorioPDF } from '@/components/relatorio/relatorio-pdf'
+import { getPlanoUsuario } from '@/lib/billing/plano'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,14 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  const plano = await getPlanoUsuario(supabase, user.id)
+  if (!plano.isPro) {
+    return NextResponse.json(
+      { error: 'Exportação de relatórios está disponível no plano Pro.' },
+      { status: 403 }
+    )
   }
 
   const [profileRes, dados] = await Promise.all([

@@ -12,22 +12,41 @@
  */
 import { useState } from 'react'
 import { AddLancamentoDrawer, type CategoriaOpcao } from './add-lancamento-drawer'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import type { UsoMensalLancamentos } from '@/lib/billing/plano'
 
 interface AddLancamentoFabProps {
   categorias: CategoriaOpcao[]
+  isPro?: boolean
+  usoMensal?: UsoMensalLancamentos
 }
 
-export function AddLancamentoFab({ categorias }: AddLancamentoFabProps) {
+export function AddLancamentoFab({
+  categorias,
+  isPro = false,
+  usoMensal,
+}: AddLancamentoFabProps) {
   const [open, setOpen] = useState(false)
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+
+  const limiteAtingido = !isPro && !!usoMensal?.atingiuLimite
+
+  function abrir() {
+    if (limiteAtingido) {
+      setUpgradeOpen(true)
+      return
+    }
+    setOpen(true)
+  }
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={abrir}
         aria-label="Nova movimentação"
         className="
-          fixed right-4 md:right-6 bottom-4 md:bottom-6 z-30
+          fixed right-4 md:right-6 bottom-24 md:bottom-6 z-30
           group flex items-center gap-2.5
           h-14 pl-4 pr-4 md:pr-5
           rounded-full
@@ -68,6 +87,12 @@ export function AddLancamentoFab({ categorias }: AddLancamentoFabProps) {
         open={open}
         onClose={() => setOpen(false)}
         categorias={categorias}
+        isPro={isPro}
+      />
+      <UpgradeModal
+        open={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        message="Você atingiu o limite de 30 lançamentos do plano Free."
       />
     </>
   )

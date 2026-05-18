@@ -2,10 +2,10 @@
 
 /**
  * Seção Plano (briefing 4.7 + 5.4).
- * Usa as actions do Stripe pra abrir Checkout (upgrade) ou Portal (gerenciar).
+ * Abre o Checkout via Route Handler e o Portal via Server Action.
  */
 import { useState } from 'react'
-import { createCheckoutSession, createPortalSession } from '@/lib/actions/stripe'
+import { createPortalSession } from '@/lib/actions/stripe'
 import type { Plano } from '@/types/database'
 
 interface PlanoSectionProps {
@@ -15,6 +15,7 @@ interface PlanoSectionProps {
 }
 
 const LABELS: Record<Plano, string> = {
+  free: 'Grátis',
   gratis: 'Grátis',
   essencial: 'Essencial',
   pro: 'Pro',
@@ -29,16 +30,25 @@ export function PlanoSection({ plano, trialFim, temAssinatura }: PlanoSectionPro
     ? Math.max(0, Math.ceil((new Date(trialFim).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
     : 0
 
-  async function handleUpgrade(planoAlvo: 'essencial' | 'pro') {
+  async function handleUpgrade() {
     setLoading('upgrade')
     setErro(null)
-    const res = await createCheckoutSession(planoAlvo)
-    setLoading(null)
-    if (!res.ok) {
-      setErro(res.error)
-      return
+
+    try {
+      const res = await fetch('/api/stripe/checkout', { method: 'POST' })
+      const data = await res.json().catch(() => null) as { url?: string; error?: string } | null
+
+      if (!res.ok || !data?.url) {
+        setErro(data?.error ?? 'Erro ao abrir o checkout. Tenta de novo.')
+        return
+      }
+
+      window.location.href = data.url
+    } catch {
+      setErro('Não consegui conectar com o checkout. Tenta de novo em instantes.')
+    } finally {
+      setLoading(null)
     }
-    window.location.href = res.url
   }
 
   async function handlePortal() {
@@ -71,8 +81,8 @@ export function PlanoSection({ plano, trialFim, temAssinatura }: PlanoSectionPro
         {temAssinatura
           ? 'Você pode atualizar plano, método de pagamento ou cancelar pelo portal.'
           : trialAtivo
-          ? 'Aproveite o trial. Quando acabar, escolha um plano pra manter o acesso.'
-          : 'Faça upgrade pra desbloquear todas as features.'}
+          ? 'Aproveite o trial. Quando acabar, sua assinatura mensal mantém o acesso.'
+          : 'Teste o Pro grátis por 7 dias. Depois, a assinatura mensal é R$99.'}
       </p>
 
       <div className="flex flex-wrap gap-3">
@@ -86,24 +96,14 @@ export function PlanoSection({ plano, trialFim, temAssinatura }: PlanoSectionPro
             {loading === 'portal' ? 'Abrindo...' : 'Gerenciar assinatura'}
           </button>
         ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => handleUpgrade('essencial')}
-              disabled={loading !== null}
-              className="sobra-btn-primary"
-            >
-              {loading === 'upgrade' ? 'Abrindo...' : 'Assinar Essencial'}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleUpgrade('pro')}
-              disabled={loading !== null}
-              className="sobra-btn-secondary"
-            >
-              Assinar Pro
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={handleUpgrade}
+            disabled={loading !== null}
+            className="sobra-btn-primary"
+          >
+            {loading === 'upgrade' ? 'Abrindo...' : 'Testar grátis por 7 dias'}
+          </button>
         )}
       </div>
 

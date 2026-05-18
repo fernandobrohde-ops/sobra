@@ -3,8 +3,8 @@
 /**
  * Lista interativa da tela /contas (briefing 4.5).
  *
- * Cada item exibe descrição, valor, status do vencimento (badge) e um menu
- * com 3 ações: Marcar como pago, Editar, Excluir.
+ * Cada item exibe descrição, valor, status do vencimento (badge) e ações
+ * diretas: Marcar como pago, Editar, Excluir.
  *
  * Edição reabre o `AddLancamentoDrawer` em modo "editar".
  */
@@ -36,9 +36,10 @@ interface ContasListProps {
   categorias: CategoriaOpcao[]
   total: number
   aba: Aba
+  isPro: boolean
 }
 
-export function ContasList({ itens, categorias, total, aba }: ContasListProps) {
+export function ContasList({ itens, categorias, total, aba, isPro }: ContasListProps) {
   const router = useRouter()
   const [, startTransition] = useTransition()
   const toast = useToast()
@@ -192,6 +193,7 @@ export function ContasList({ itens, categorias, total, aba }: ContasListProps) {
         }}
         categorias={categorias}
         inicial={editarItem}
+        isPro={isPro}
       />
     </>
   )
@@ -281,10 +283,8 @@ function ActionMenu({
   onEditar: () => void
   onExcluir: () => void
 }) {
-  const [open, setOpen] = useState(false)
-
   return (
-    <div className="relative ml-auto flex items-center gap-1.5">
+    <div className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
       <button
         type="button"
         onClick={onMarcar}
@@ -295,61 +295,21 @@ function ActionMenu({
       </button>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={onEditar}
         disabled={ocupado}
-        aria-label="Mais ações"
-        className="w-7 h-7 rounded-control text-sobra-ink/60 hover:bg-sobra-bg disabled:opacity-50 flex items-center justify-center"
+        className="text-caption font-medium text-sobra-green hover:underline disabled:opacity-50 px-2 py-1"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-          <circle cx="3" cy="8" r="1.4" />
-          <circle cx="8" cy="8" r="1.4" />
-          <circle cx="13" cy="8" r="1.4" />
-        </svg>
+        Editar
       </button>
-
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Fechar menu"
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default"
-            tabIndex={-1}
-          />
-          <div className="absolute right-0 top-9 w-44 bg-white border border-sobra-line rounded-card shadow-lg p-1.5 z-50">
-            <MenuItem onClick={() => { setOpen(false); onEditar() }}>
-              Editar
-            </MenuItem>
-            <MenuItem onClick={() => { setOpen(false); onExcluir() }} danger>
-              Excluir
-            </MenuItem>
-          </div>
-        </>
-      )}
+      <button
+        type="button"
+        onClick={onExcluir}
+        disabled={ocupado}
+        className="text-caption font-medium text-sobra-danger-text hover:underline disabled:opacity-50 px-2 py-1"
+      >
+        Excluir
+      </button>
     </div>
-  )
-}
-
-function MenuItem({
-  children,
-  onClick,
-  danger = false,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  danger?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`block w-full text-left px-3 py-2 text-body rounded-control hover:bg-sobra-bg ${
-        danger ? 'text-sobra-danger-text' : 'text-sobra-ink'
-      }`}
-      role="menuitem"
-    >
-      {children}
-    </button>
   )
 }
 

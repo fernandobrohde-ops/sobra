@@ -32,13 +32,19 @@ export function WhatsappSection({ inicial, numeroSobra }: WhatsappSectionProps) 
 
   // Polling enquanto código ativo: checa se vinculou
   useEffect(() => {
-    if (!codigo || status.vinculado) {
+    if (!codigo) {
       if (pollTimer.current) clearInterval(pollTimer.current)
       return
     }
     pollTimer.current = setInterval(async () => {
       const res = await getStatusVinculo()
-      if (res.ok && res.data.vinculado) {
+      const novoVinculoConfirmado =
+        res.ok &&
+        res.data.vinculado &&
+        !!res.data.verified_at &&
+        new Date(res.data.verified_at).getTime() >= new Date(codigo.created_at).getTime()
+
+      if (novoVinculoConfirmado) {
         setStatus(res.data)
         setCodigo(null)
       }
@@ -46,7 +52,7 @@ export function WhatsappSection({ inicial, numeroSobra }: WhatsappSectionProps) 
     return () => {
       if (pollTimer.current) clearInterval(pollTimer.current)
     }
-  }, [codigo, status.vinculado])
+  }, [codigo])
 
   async function ativar() {
     setLoading(true)
@@ -71,39 +77,6 @@ export function WhatsappSection({ inicial, numeroSobra }: WhatsappSectionProps) 
     }
     setStatus({ vinculado: false, whatsapp_number: null, verified_at: null })
     setCodigo(null)
-  }
-
-  // ---- Estado: vinculado ----
-  if (status.vinculado) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-start gap-3 p-4 bg-sobra-green-mist border border-sobra-green-soft rounded-card">
-          <div className="w-9 h-9 rounded-full bg-sobra-green text-white flex items-center justify-center flex-shrink-0">
-            ✓
-          </div>
-          <div className="flex-1">
-            <p className="text-body-sm font-semibold text-sobra-green">Assistente ativado</p>
-            <p className="text-caption text-sobra-ink-soft mt-0.5">
-              Vinculado ao número <span className="tabular-nums font-medium">+{status.whatsapp_number}</span>
-            </p>
-          </div>
-        </div>
-
-        <p className="text-caption text-sobra-ink-muted">
-          Mande mensagens pra <span className="font-medium tabular-nums">{numeroSobra}</span> no WhatsApp.
-          Tente: <em>&ldquo;quanto sobrou esse mês?&rdquo;</em> ou <em>&ldquo;recebi 200 do João&rdquo;</em>.
-        </p>
-
-        <button
-          type="button"
-          onClick={handleDesvincular}
-          disabled={loading}
-          className="text-caption text-sobra-danger-text hover:underline"
-        >
-          Desvincular WhatsApp
-        </button>
-      </div>
-    )
   }
 
   // ---- Estado: código ativo ----
@@ -141,7 +114,7 @@ export function WhatsappSection({ inicial, numeroSobra }: WhatsappSectionProps) 
 
         <p className="text-caption text-sobra-ink-muted flex items-center gap-2">
           <span className="inline-block w-2 h-2 rounded-full bg-sobra-green animate-pulse" />
-          Aguardando confirmação...
+          Aguardando confirmação no WhatsApp que vai ficar vinculado...
         </p>
 
         <button
@@ -151,6 +124,54 @@ export function WhatsappSection({ inicial, numeroSobra }: WhatsappSectionProps) 
         >
           Cancelar
         </button>
+      </div>
+    )
+  }
+
+  // ---- Estado: vinculado ----
+  if (status.vinculado) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-3 p-4 bg-sobra-green-mist border border-sobra-green-soft rounded-card">
+          <div className="w-9 h-9 rounded-full bg-sobra-green text-white flex items-center justify-center flex-shrink-0">
+            ✓
+          </div>
+          <div className="flex-1">
+            <p className="text-body-sm font-semibold text-sobra-green">Assistente ativado</p>
+            <p className="text-caption text-sobra-ink-soft mt-0.5">
+              Vinculado ao número <span className="tabular-nums font-medium">+{status.whatsapp_number}</span>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-caption text-sobra-ink-muted">
+          Mande mensagens pra <span className="font-medium tabular-nums">{numeroSobra}</span> no WhatsApp.
+          Tente: <em>&ldquo;quanto sobrou esse mês?&rdquo;</em> ou <em>&ldquo;recebi 200 do João&rdquo;</em>.
+        </p>
+
+        <div className="flex flex-wrap gap-4">
+          <button
+            type="button"
+            onClick={ativar}
+            disabled={loading}
+            className="text-caption text-sobra-green hover:underline disabled:opacity-60"
+          >
+            {loading ? 'Gerando código...' : 'Trocar número vinculado'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDesvincular}
+            disabled={loading}
+            className="text-caption text-sobra-danger-text hover:underline disabled:opacity-60"
+          >
+            Desvincular WhatsApp
+          </button>
+        </div>
+
+        {erro && (
+          <p className="text-caption text-sobra-danger-text">{erro}</p>
+        )}
       </div>
     )
   }

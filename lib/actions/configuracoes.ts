@@ -8,6 +8,7 @@
  */
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getPlanoUsuario } from '@/lib/billing/plano'
 import type { Setor, TipoLancamento } from '@/types/database'
 
 export type ActionResult<T = void> =
@@ -22,6 +23,7 @@ export interface UpdatePerfilInput {
   nome_negocio: string
   setor: Setor
   whatsapp: string | null
+  avatar_url: string | null
 }
 
 export async function updatePerfil(input: UpdatePerfilInput): Promise<ActionResult> {
@@ -34,6 +36,9 @@ export async function updatePerfil(input: UpdatePerfilInput): Promise<ActionResu
   if (!SETORES_VALIDOS.has(input.setor)) return { ok: false, error: 'Setor inválido.' }
   if (input.whatsapp && !/^\+?[0-9 ()-]{8,20}$/.test(input.whatsapp))
     return { ok: false, error: 'Telefone inválido.' }
+  const avatarUrl = input.avatar_url?.trim() || null
+  if (avatarUrl && (avatarUrl.length > 500 || !/^https?:\/\/.+/i.test(avatarUrl)))
+    return { ok: false, error: 'Foto inválida. Use um link começando com http ou https.' }
 
   const { error } = await supabase
     .from('profiles')
@@ -41,6 +46,7 @@ export async function updatePerfil(input: UpdatePerfilInput): Promise<ActionResu
       nome_negocio: input.nome_negocio.trim(),
       setor: input.setor,
       whatsapp: input.whatsapp,
+      avatar_url: avatarUrl,
     })
     .eq('id', user.id)
 
@@ -60,6 +66,13 @@ const SETORES_VALIDOS = new Set<Setor>([
 // ---------------------------------------------------------------------
 
 export interface AddCategoriaInput {
+  nome: string
+  tipo: TipoLancamento
+  cor: string | null
+}
+
+export interface UpdateCategoriaInput {
+  id: string
   nome: string
   tipo: TipoLancamento
   cor: string | null
@@ -93,6 +106,36 @@ export async function addCategoria(
 
   revalidatePath('/configuracoes')
   return { ok: true, data: { id: data.id } }
+}
+
+export async function updateCategoria(input: UpdateCategoriaInput): Promise<ActionResult> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Sessão expirou.' }
+
+  const nome = input.nome.trim()
+  if (!input.id) return { ok: false, error: 'Categoria inválida.' }
+  if (!nome) return { ok: false, error: 'Coloca um nome pra categoria.' }
+  if (nome.length > 60) return { ok: false, error: 'Nome muito longo (máx 60).' }
+  if (input.tipo !== 'entrada' && input.tipo !== 'saida') return { ok: false, error: 'Tipo inválido.' }
+  if (input.cor && !/^#[0-9A-Fa-f]{6}$/.test(input.cor)) return { ok: false, error: 'Cor inválida.' }
+
+  const { error } = await supabase
+    .from('categorias')
+    .update({ nome, tipo: input.tipo, cor: input.cor })
+    .eq('id', input.id)
+    .eq('user_id', user.id)
+
+  if (error) {
+    if (error.message.toLowerCase().includes('duplicate'))
+      return { ok: false, error: 'Você já tem uma categoria com esse nome.' }
+    return { ok: false, error: 'Não consegui editar agora.' }
+  }
+
+  revalidatePath('/configuracoes')
+  revalidatePath('/dashboard')
+  revalidatePath('/contas')
+  return { ok: true }
 }
 
 export async function deleteCategoria(id: string): Promise<ActionResult> {
@@ -134,6 +177,11 @@ export async function updateAlertas(input: UpdateAlertasInput): Promise<ActionRe
 
   if (![1, 2, 3, 7].includes(input.alerta_vencimento_dias))
     return { ok: false, error: 'Antecedência inválida.' }
+
+  const plano = await getPlanoUsuario(supabase, user.id)
+  if (input.whatsapp_ativo && plano.isFree) {
+    return { ok: false, error: 'Alertas WhatsApp estão disponíveis no plano Pro.' }
+  }
 
   // upsert porque se o profile foi criado mas (por algum motivo) a row de
   // alertas_config não existe, garantimos a criação aqui.

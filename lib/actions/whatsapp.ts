@@ -11,18 +11,25 @@
  */
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getPlanoUsuario } from '@/lib/billing/plano'
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string }
 
 export interface CodigoVinculo {
   verification_code: string
   expires_at: string
+  created_at: string
 }
 
 export async function gerarCodigoVinculo(): Promise<Result<CodigoVinculo>> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Sessão expirou.' }
+
+  const plano = await getPlanoUsuario(supabase, user.id)
+  if (plano.isFree) {
+    return { ok: false, error: 'Assistente WhatsApp está disponível no plano Pro.' }
+  }
 
   const { data, error } = await supabase.rpc('gerar_codigo_vinculo_whatsapp')
   if (error) return { ok: false, error: 'Não consegui gerar o código agora.' }
@@ -37,6 +44,7 @@ export async function gerarCodigoVinculo(): Promise<Result<CodigoVinculo>> {
     data: {
       verification_code: row.verification_code,
       expires_at: row.expires_at,
+      created_at: new Date().toISOString(),
     },
   }
 }

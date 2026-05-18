@@ -29,7 +29,7 @@ export type Setor =
   | 'educacao'
   | 'outros'
 
-export type Plano = 'gratis' | 'essencial' | 'pro'
+export type Plano = 'free' | 'gratis' | 'essencial' | 'pro'
 
 export type TipoLancamento = 'entrada' | 'saida'
 
