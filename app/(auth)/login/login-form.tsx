@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState, type FormEvent } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { GoogleIcon } from '@/components/ui/google-icon'
@@ -87,11 +88,20 @@ export function LoginForm() {
           />
         </label>
 
-        <label className="block">
-          <span className="text-caption text-sobra-ink/70 mb-1.5 block">
-            Senha
-          </span>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between gap-3">
+            <label htmlFor="login-password" className="text-caption text-sobra-ink/70">
+              Senha
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-caption font-medium text-sobra-green hover:text-sobra-green-dark"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
           <input
+            id="login-password"
             type="password"
             autoComplete="current-password"
             required
@@ -101,7 +111,7 @@ export function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             disabled={status === 'submitting'}
           />
-        </label>
+        </div>
 
         <button
           type="submit"
